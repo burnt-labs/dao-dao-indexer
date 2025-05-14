@@ -1,3 +1,4 @@
+import { Params } from '@/formulas/formulas/contract/xion/types/Treasury.types'
 import { ContractFormula } from '@/types'
 
 import { Authenticator } from './types/Account.types'
@@ -43,6 +44,7 @@ export const treasuries: ContractFormula<
   compute: async (env) => {
     const {
       contractAddress,
+      get,
       getBalances,
       getTransformationMatches,
       getCodeIdsForKeys,
@@ -61,13 +63,15 @@ export const treasuries: ContractFormula<
     })
 
     return Promise.all(
-      treasuryContracts.map(async ({ contractAddress, block }) => ({
+      treasuryContracts.map(async ({ contractAddress, block, codeId }) => ({
         contractAddress,
-        balances: await getBalances(contractAddress),
+        // balances: await getBalances(contractAddress),
         block: {
           height: block.height.toString(),
           timeUnixMs: block.timeUnixMs.toString(),
         },
+        codeId,
+        params: (await get<Params>(contractAddress, 'params')) ?? {},
       })) ?? []
     )
   },
