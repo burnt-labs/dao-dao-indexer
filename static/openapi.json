@@ -21,6 +21,10 @@
     {
       "name": "generic",
       "description": "Endpoints that do not have a subject"
+    },
+    {
+      "name": "aggregator",
+      "description": "Endpoints that compute aggregated values"
     }
   ],
   "servers": [
@@ -10904,6 +10908,40 @@
         }
       }
     },
+    "/{chainId}/contract/{contractAddress}/details": {
+      "get": {
+        "tags": [
+          "contract"
+        ],
+        "summary": "retrieves contract details (codeId, admin, creator, label, instantiation block, txHash)",
+        "operationId": "details_41ffd8b",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractAddress",
+            "in": "path",
+            "description": "contract address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          }
+        }
+      }
+    },
     "/{chainId}/contract/{contractAddress}/info": {
       "get": {
         "tags": [
@@ -13006,6 +13044,148 @@
         }
       }
     },
+    "/{chainId}/account/{accountAddress}/feegrant/allowance": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "retrieves the feegrant allowance for a specific grantee",
+        "operationId": "feegrant_allowance_1535d37",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountAddress",
+            "in": "path",
+            "description": "account address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grantee",
+            "description": "address of the grantee to check allowance for",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "missing required arguments"
+          }
+        }
+      }
+    },
+    "/{chainId}/account/{accountAddress}/feegrant/allowances": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "retrieves all feegrant allowances for this account",
+        "operationId": "feegrant_allowances_3014114",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountAddress",
+            "in": "path",
+            "description": "account address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "description": "type of allowances to retrieve: \"granted\" (default) or \"received\"",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "received"
+              ]
+            },
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "missing required arguments"
+          }
+        }
+      }
+    },
+    "/{chainId}/account/{accountAddress}/feegrant/has": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "checks if there is an active feegrant allowance for a specific grantee",
+        "operationId": "feegrant_has_0dc1a7a",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountAddress",
+            "in": "path",
+            "description": "account address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grantee",
+            "description": "address of the grantee to check allowance for",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "missing required arguments"
+          }
+        }
+      }
+    },
     "/{chainId}/account/{accountAddress}/nft/collections": {
       "get": {
         "tags": [
@@ -13333,6 +13513,93 @@
             "name": "accountAddress",
             "in": "path",
             "description": "account address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          }
+        }
+      }
+    },
+    "/{chainId}/generic/_/feegrant/activity": {
+      "get": {
+        "tags": [
+          "generic"
+        ],
+        "summary": "Get feegrant grantee activity statistics",
+        "operationId": "feegrant_activity_fee51ff",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "daysAgo",
+            "description": "Number of days to look back for activity (default: 30)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "missing required arguments"
+          }
+        }
+      }
+    },
+    "/{chainId}/generic/_/feegrant/amounts": {
+      "get": {
+        "tags": [
+          "generic"
+        ],
+        "summary": "Get feegrant amounts by token denomination",
+        "operationId": "feegrant_amounts_00f996d",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          }
+        }
+      }
+    },
+    "/{chainId}/generic/_/feegrant/totals": {
+      "get": {
+        "tags": [
+          "generic"
+        ],
+        "summary": "Get comprehensive feegrant totals and statistics",
+        "operationId": "feegrant_totals_294c61f",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -13883,6 +14150,79 @@
             "name": "denom",
             "description": "native token denomination",
             "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "missing required arguments"
+          }
+        }
+      }
+    },
+    "/{chainId}/a/balance/overTime": {
+      "get": {
+        "tags": [
+          "aggregator"
+        ],
+        "summary": "Aggregate account balance over a time range",
+        "operationId": "balance_overTime_d951fc3",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "address",
+            "description": "Account address to aggregate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "denom",
+            "description": "Token denomination to aggregate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "startTime",
+            "description": "Start time in Unix milliseconds",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "endTime",
+            "description": "End time in Unix milliseconds",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "timeStep",
+            "description": "Time step in milliseconds between data points",
+            "required": false,
             "schema": {
               "type": "string"
             },

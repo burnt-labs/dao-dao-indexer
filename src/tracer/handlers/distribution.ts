@@ -1,7 +1,6 @@
 import { fromBase64 } from '@cosmjs/encoding'
 import { DecCoin } from '@dao-dao/types/protobuf/codegen/cosmos/base/v1beta1/coin'
 import { FeePool } from '@dao-dao/types/protobuf/codegen/cosmos/distribution/v1beta1/distribution'
-import retry from 'async-await-retry'
 import { Sequelize } from 'sequelize'
 
 import { Block, DistributionCommunityPoolStateEvent, State } from '@/db'
@@ -10,6 +9,7 @@ import {
   HandlerMaker,
   ParsedDistributionCommunityPoolStateEvent,
 } from '@/types'
+import { retry } from '@/utils'
 
 const STORE_NAME = 'distribution'
 
@@ -73,31 +73,28 @@ export const distribution: HandlerMaker<
 
   const process: Handler<ParsedDistributionCommunityPoolStateEvent>['process'] =
     async (events) => {
-      // Save blocks from events.
-      await Block.createMany(
-        [...new Set(events.map((e) => e.blockHeight))].map((height) => ({
-          height,
-          timeUnixMs: events.find((e) => e.blockHeight === height)!
-            .blockTimeUnixMs,
-        }))
-      )
+      const exportEvents = async () => {
+        // Save blocks from events.
+        await Block.createMany(
+          [...new Set(events.map((e) => e.blockHeight))].map((height) => ({
+            height,
+            timeUnixMs: events.find((e) => e.blockHeight === height)!
+              .blockTimeUnixMs,
+          }))
+        )
 
-      const exportEvents = async () =>
         // Unique index on [blockHeight] ensures that we don't insert duplicate
         // events. If we encounter a duplicate, we update the `balances` field
         // in case event processing for a block was batched separately.
-        events.length > 0
+        return events.length > 0
           ? await DistributionCommunityPoolStateEvent.bulkCreate(events, {
               updateOnDuplicate: ['balances'],
+              conflictAttributes: ['blockHeight'],
             })
           : []
+      }
 
-      // Retry 3 times with exponential backoff starting at 100ms delay.
-      const exportedEvents = (await retry(exportEvents, [], {
-        retriesMax: 3,
-        exponential: true,
-        interval: 100,
-      })) as DistributionCommunityPoolStateEvent[]
+      const exportedEvents = await retry(3, exportEvents, 100)
 
       // Store last block height exported, and update latest block
       // height/time if the last export is newer.

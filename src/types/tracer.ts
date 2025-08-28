@@ -3,33 +3,49 @@ import { AutoCosmWasmClient } from '@/utils'
 import { Config } from './config'
 import { DependableEventModel } from './db'
 
-export type Handler<Data extends unknown = unknown> = {
-  // What store name to filter by for events to handle.
+export type Handler<
+  Data extends Record<string, unknown> = Record<string, unknown>
+> = {
+  /**
+   * What store name to filter by for events to handle.
+   */
   storeName: string
-  // The function that will be called for each trace which determines if it will
-  // be queued for export. If returns an object, it will be queued. If returns
-  // undefined, it will not be queued.
+  /**
+   * The function that will be called for each trace which determines if it will
+   * be queued for export. If returns an object, it will be queued. If returns
+   * undefined, it will not be queued.
+   */
   match: (trace: TracedEventWithBlockTime) =>
     | (Data & {
-        // ID that uniquely represents this object. Likely a combination of
-        // block height and some key or keys.
+        /**
+         * ID that uniquely represents this object. Likely a combination of
+         * block height and some key or keys.
+         */
         id: string
       })
     | undefined
-  // The function that will be called with queued objects. Returns created
-  // events.
-  process: (data: Data[]) => Promise<DependableEventModel[]>
+  /**
+   * The function that will be called with queued objects. Returns created
+   * events. This is blocking.
+   */
+  process?: (data: Data[]) => Promise<DependableEventModel[]>
+  /**
+   * The function that will be called with queued objects. Returns created
+   * events. This is used for background processing and is non-blocking.
+   */
+  processBackground?: (data: Data[]) => Promise<DependableEventModel[]>
 }
 
 export type HandlerMakerOptions = {
+  chainId: string
   config: Config
   sendWebhooks: boolean
   autoCosmWasmClient: AutoCosmWasmClient
 }
 
-export type HandlerMaker<Data extends unknown = unknown> = (
-  options: HandlerMakerOptions
-) => Promise<Handler<Data>>
+export type HandlerMaker<
+  Data extends Record<string, unknown> = Record<string, unknown>
+> = (options: HandlerMakerOptions) => Promise<Handler<Data>>
 
 export type NamedHandler = {
   name: string
@@ -120,4 +136,19 @@ export type ParsedBankStateEvent = {
   blockTimestamp: Date
   denom: string
   balance: string
+}
+
+export type ParsedFeegrantStateEvent = {
+  granter: string
+  grantee: string
+  blockHeight: string
+  blockTimeUnixMs: string
+  blockTimestamp: Date
+  allowanceData: string
+  allowanceType: string | null
+  active: boolean
+  parsedAmount: string | null
+  parsedDenom: string | null
+  parsedAllowanceType: string | null
+  parsedExpirationUnixMs: string | null
 }

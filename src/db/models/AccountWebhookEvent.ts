@@ -37,7 +37,7 @@ type RequestBody = {
     uuid: string
     attempt: number
   }
-  block: SerializedBlock & { timestamp: string }
+  block: SerializedBlock
   contractAddress: string
   codeId: number
   key: string
@@ -168,8 +168,8 @@ export class AccountWebhookEvent extends Model {
       'X-Webhook-Signature': signature,
     }
 
-    let responseBody = null
-    let responseHeaders = null
+    let responseBody: any = null
+    let responseHeaders: any = null
     let statusCode: number
     try {
       const response = await axios(this.url, {

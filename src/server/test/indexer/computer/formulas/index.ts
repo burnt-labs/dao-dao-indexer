@@ -7,6 +7,7 @@ import { WasmCode, WasmCodeService } from '@/services/wasm-codes'
 import { app } from '../../app'
 import { ComputerTestOptions } from '../types'
 import { loadBankTests } from './bank'
+import { loadFeegrantTests } from './feegrant'
 import { loadGovTests } from './gov'
 // import { loadStakingTests } from './staking'
 import { loadWasmTests } from './wasm'
@@ -18,12 +19,13 @@ export const loadFormulasTests = (options: ComputerTestOptions) => {
     })
 
     loadBankTests(options)
+    loadFeegrantTests(options)
     loadGovTests(options)
     // loadStakingTests(options)
     loadWasmTests(options)
 
     it('filters contract by code IDs specified in formula', async () => {
-      WasmCodeService.getInstance().addDefaultWasmCodes(
+      WasmCodeService.instance.addDefaultWasmCodes(
         new WasmCode('dao-dao-core', [1, 2])
       )
 

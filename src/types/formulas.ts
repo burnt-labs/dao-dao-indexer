@@ -6,19 +6,27 @@ import {
 import { OpenAPIV3_1 } from 'openapi-types'
 import { BindOrReplacements, WhereOptions } from 'sequelize'
 
-import type { Contract, StakingSlashEvent, WasmTxEvent } from '@/db'
+import type {
+  Contract,
+  Extraction,
+  StakingSlashEvent,
+  WasmStateEvent,
+  WasmTxEvent,
+} from '@/db'
 
 import { ComputationDependentKey } from './computation'
-import { ContractJson, DependableEventModel } from './db'
-import { Block, RequireAtLeastOne } from './misc'
+import { ContractJson, DependableEventModel, FeegrantAllowanceJson } from './db'
+import { Block, NestedMap, RequireAtLeastOne } from './misc'
 
 export type KeyInput = string | number | Uint8Array
 export type KeyInputType = 'string' | 'number' | 'bytes'
 
-export type FormulaGetter = <T>(
+export type FormulaBlockGetter = (height: number) => Promise<Block | undefined>
+
+export type FormulaGetter = <T = any>(
   contractAddress: string,
   ...keys: KeyInput[]
-) => Promise<T | undefined>
+) => Promise<WasmStateEvent<T> | undefined>
 
 export type FormulaPrefetch = (
   contractAddress: string,
@@ -81,7 +89,13 @@ export type FormulaTransformationMatchesGetter = <T>(
 export type FormulaTransformationMatchGetter = <T>(
   ...args: Parameters<FormulaTransformationMatchesGetter>
 ) => Promise<
-  | { contractAddress: string; codeId: number; name: string; value: T }
+  | {
+      block: Block
+      contractAddress: string
+      codeId: number
+      name: string
+      value: T
+    }
   | undefined
 >
 
@@ -180,6 +194,21 @@ export type FormulaCommunityPoolBalancesGetter = () => Promise<
   Record<string, string> | undefined
 >
 
+export type FormulaFeegrantAllowanceGetter = (
+  granter: string,
+  grantee: string
+) => Promise<FeegrantAllowanceJson | undefined>
+
+export type FormulaFeegrantAllowancesGetter = (
+  address: string,
+  type?: 'granted' | 'received'
+) => Promise<FeegrantAllowanceJson[] | undefined>
+
+export type FormulaFeegrantHasAllowanceGetter = (
+  granter: string,
+  grantee: string
+) => Promise<boolean>
+
 export type FormulaProposalObject = {
   id: string
   data: string
@@ -249,6 +278,22 @@ export type FormulaProposalVoteCountGetter = (
   proposalId: string
 ) => Promise<number>
 
+export type FormulaExtractionGetter = <T = any>(
+  address: string,
+  name: string
+) => Promise<Extraction<T> | undefined>
+
+export type FormulaExtractionMapGetter = <V = any>(
+  contractAddress: string,
+  namePrefix: string
+) => Promise<Record<string, V> | undefined>
+
+export type FormulaDateFirstExtractedGetter = (
+  contractAddress: string,
+  name: string,
+  where?: WhereOptions
+) => Promise<Date | undefined>
+
 export type FormulaQuerier = (
   query: string,
   bindParams?: BindOrReplacements
@@ -267,6 +312,7 @@ export type Env<Args extends Record<string, string> = {}> = {
    */
   args: Partial<Args>
 
+  getBlock: FormulaBlockGetter
   get: FormulaGetter
   getMap: FormulaMapGetter
   getDateKeyModified: FormulaDateGetter
@@ -293,6 +339,12 @@ export type Env<Args extends Record<string, string> = {}> = {
   getProposalVotes: FormulaProposalVotesGetter
   getProposalVoteCount: FormulaProposalVoteCountGetter
   getCommunityPoolBalances: FormulaCommunityPoolBalancesGetter
+  getExtraction: FormulaExtractionGetter
+  getExtractionMap: FormulaExtractionMapGetter
+  getDateFirstExtracted: FormulaDateFirstExtractedGetter
+  getFeegrantAllowance: FormulaFeegrantAllowanceGetter
+  getFeegrantAllowances: FormulaFeegrantAllowancesGetter
+  hasFeegrantAllowance: FormulaFeegrantHasAllowanceGetter
 
   /**
    * Raw database query. This cannot be cached, so any formula that uses this
@@ -434,10 +486,6 @@ export type ComputeRangeOptions = {
   args: Record<string, any>
   blockStart: Block
   blockEnd: Block
-  blockStep?: bigint
-  timeStep?: bigint
 } & TypedFormula
 
-export type NestedFormulaMap<F> = {
-  [key: string]: F | NestedFormulaMap<F> | undefined
-}
+export type NestedFormulaMap<F> = NestedMap<F>

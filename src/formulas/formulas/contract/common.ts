@@ -1,4 +1,4 @@
-import { ContractFormula } from '@/types'
+import { ContractFormula, ContractJson } from '@/types'
 
 import { ContractInfo } from '../types'
 import { makeSimpleContractFormula } from '../utils'
@@ -7,16 +7,70 @@ export const info: ContractFormula<ContractInfo> = {
   docs: {
     description: 'retrieves the contract info (name and version)',
   },
-  compute: async ({ contractAddress, getTransformationMatch, get }) => {
+  compute: async ({
+    contractAddress,
+    getTransformationMatch,
+    get,
+    getExtraction,
+  }) => {
+    const [transformation, extraction] = await Promise.all([
+      getTransformationMatch<ContractInfo>(contractAddress, 'info')
+        .then((result) =>
+          result?.value
+            ? {
+                height: result.block.height,
+                value: result.value,
+              }
+            : get(contractAddress, 'contract_info').then((result) =>
+                result?.valueJson
+                  ? {
+                      height: result.block.height,
+                      value: result.valueJson as ContractInfo,
+                    }
+                  : null
+              )
+        )
+        .catch(() => null),
+      getExtraction(contractAddress, 'info').then(
+        (result) =>
+          result && {
+            height: result.block.height,
+            value: result.data as ContractInfo,
+          }
+      ),
+    ])
+
+    // Use whichever is more recent.
     const info =
-      (await getTransformationMatch<ContractInfo>(contractAddress, 'info'))
-        ?.value || (await get(contractAddress, 'contract_info'))
+      transformation && extraction
+        ? transformation.height > extraction.height
+          ? transformation.value
+          : extraction.value
+        : transformation && !extraction
+        ? transformation.value
+        : extraction && !transformation
+        ? extraction.value
+        : null
 
     if (!info) {
       throw new Error(`no contract info found for ${contractAddress}`)
     }
 
     return info
+  },
+}
+
+export const details: ContractFormula<ContractJson> = {
+  docs: {
+    description:
+      'retrieves contract details (codeId, admin, creator, label, instantiation block, txHash)',
+  },
+  compute: async ({ contractAddress, getContract }) => {
+    const contract = await getContract(contractAddress)
+    if (!contract) {
+      throw new Error('contract not yet indexed')
+    }
+    return contract
   },
 }
 
@@ -52,15 +106,16 @@ export const instantiatedAt: ContractFormula<string> = {
     description: 'retrieves the contract instantiation timestamp',
   },
   compute: async ({ contractAddress, getContract }) => {
-    const timestamp = (
-      await getContract(contractAddress)
-    )?.instantiatedAt.timestamp.toISOString()
-
-    if (!timestamp) {
+    const contract = await getContract(contractAddress)
+    if (!contract) {
       throw new Error('contract not yet indexed')
     }
 
-    return timestamp
+    if (!contract.instantiatedAt) {
+      throw new Error('contract instantiation unknown')
+    }
+
+    return contract.instantiatedAt.timestamp
   },
 }
 
@@ -108,7 +163,7 @@ export const item: ContractFormula<any, { key: string; keys: string }> = {
   },
   compute: async ({ contractAddress, get, args: { key, keys } }) => {
     if (key) {
-      return await get(contractAddress, key)
+      return (await get(contractAddress, key))?.valueJson
     }
 
     if (keys) {
@@ -123,7 +178,7 @@ export const item: ContractFormula<any, { key: string; keys: string }> = {
         )
       }
 
-      return await get(contractAddress, ...parsedKeys)
+      return (await get(contractAddress, ...parsedKeys))?.valueJson
     }
 
     throw new Error('missing key or keys')

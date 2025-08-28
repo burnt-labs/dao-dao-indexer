@@ -2,7 +2,7 @@ import { WhereOptions } from 'sequelize'
 import { Model } from 'sequelize-typescript'
 
 import { ComputationDependentKey } from './computation'
-import { Block } from './misc'
+import { Block, SerializedBlock } from './misc'
 
 export enum DbType {
   Accounts = 'accounts',
@@ -18,11 +18,13 @@ export enum DependentKeyNamespace {
   WasmStateEventTransformation = 'wasm_state_transformation',
   WasmTxEvent = 'wasm_tx',
   StakingSlash = 'staking_slash',
-  BankBalance = 'bank_balance',
+  BankDenomBalance = 'bank_denom_balance',
   BankStateEvent = 'bank_state',
   GovProposal = 'gov_proposal',
   GovProposalVote = 'gov_proposal_vote',
   DistributionCommunityPoolStateEvent = 'distribution_community_pool_state',
+  Extraction = 'extraction',
+  FeegrantAllowance = 'feegrant_allowance',
 }
 
 // Interface that event models must implement to be depended on by computations.
@@ -60,8 +62,24 @@ export type ContractJson = {
   admin?: string | null
   creator?: string | null
   label?: string | null
-  instantiatedAt: {
-    block: Block
-    timestamp: Date
-  }
+  instantiatedAt?: SerializedBlock | null
+  txHash?: string | null
+}
+
+export type FeegrantAllowanceJson = {
+  granter: string
+  grantee: string
+  allowanceData: string
+  allowanceType: string | null
+  active: boolean
+  block: SerializedBlock
+}
+
+export type ExtractionJson = {
+  address: string
+  name: string
+  blockHeight: string
+  blockTimeUnixMs: string
+  txHash: string
+  data: unknown
 }

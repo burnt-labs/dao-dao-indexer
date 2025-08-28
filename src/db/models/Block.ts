@@ -79,6 +79,7 @@ export class Block extends Model {
       })),
       {
         updateOnDuplicate: ['timeUnixMs', 'timestamp'],
+        conflictAttributes: ['height'],
       }
     )
   }
@@ -132,6 +133,20 @@ export class Block extends Model {
         },
       },
       order: [['height', 'ASC']],
+    })
+  }
+
+  /**
+   * Get the last block.
+   */
+  static async getLast(): Promise<Block | null> {
+    return await Block.findOne({
+      where: {
+        height: {
+          [Op.gt]: 0,
+        },
+      },
+      order: [['height', 'DESC']],
     })
   }
 }

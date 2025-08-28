@@ -22,7 +22,7 @@ export type DB = { uri?: string } & Pick<
 
 export type Config = {
   home: string
-  localRpc: string
+  localRpc?: string
   remoteRpc: string
   bech32Prefix: string
   db: {
@@ -32,7 +32,10 @@ export type Config = {
   redis?: {
     host?: string
     port?: number | string
+    username?: string
     password: string
+    keyPrefix?: string
+    tls?: boolean | 'true' | 1 | '1' | { ca: string }
   }
   meilisearch?: {
     host: string
@@ -45,6 +48,11 @@ export type Config = {
    * @deprecated Use WasmCodeService to access code IDs.
    */
   codeIds?: Partial<Record<string, number[]>>
+
+  /**
+   * Whether to only export wasm state events for code IDs that are known.
+   */
+  onlyExportKnownCodeIds?: boolean
 
   // If present, sets up Sentry error reporting.
   sentryDsn?: string

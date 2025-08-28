@@ -1,6 +1,7 @@
 import Router from '@koa/router'
 import { DefaultContext, DefaultState } from 'koa'
 
+import { ConfigManager } from '@/config'
 import { State } from '@/db'
 import { getStargateClient } from '@/utils'
 
@@ -13,13 +14,13 @@ type UpBlock = {
 type UpResponse =
   | {
       chainId: string
-      chainBlock: UpBlock
-      nodeBlock: UpBlock
+      remoteBlock: UpBlock
+      localBlock: UpBlock | { error: string } | null
       exportedBlock: UpBlock
       caughtUp: boolean
       timing: {
         state: number
-        localChainBlock: number
+        localChainBlock: number | null
         remoteChainBlock: number
       }
     }
@@ -32,18 +33,20 @@ export const up: Router.Middleware<
   DefaultContext,
   UpResponse
 > = async (ctx) => {
+  const config = ConfigManager.load()
+  const hasLocalRpc = !!config.localRpc
+
   const start = Date.now()
 
   let state,
     stateDuration,
-    localChainBlock,
-    localChainBlockDuration,
+    localResponse,
     remoteChainBlock,
     remoteChainBlockDuration
   try {
     ;[
       { state, duration: stateDuration },
-      { block: localChainBlock, duration: localChainBlockDuration },
+      localResponse,
       { block: remoteChainBlock, duration: remoteChainBlockDuration },
     ] = await Promise.all([
       State.getSingleton()
@@ -62,29 +65,34 @@ export const up: Router.Middleware<
             }) ??
             Promise.reject('State not found.')
         ),
-      getStargateClient('local')
-        .catch((err) =>
-          Promise.reject(
-            `Failed to connect to local chain via RPC: ${
-              err instanceof Error ? err.message : `${err}`
-            }`
-          )
-        )
-        .then((client) =>
-          client
-            .getBlock()
-            .then((block) => ({
-              block,
-              duration: Date.now() - start,
-            }))
+      hasLocalRpc
+        ? getStargateClient('local')
             .catch((err) =>
               Promise.reject(
-                `Failed to get local chain block: ${
+                `Failed to connect to local chain via RPC: ${
                   err instanceof Error ? err.message : `${err}`
                 }`
               )
             )
-        ),
+            .then((client) =>
+              client
+                .getBlock()
+                .then((block) => ({
+                  block,
+                  duration: Date.now() - start,
+                }))
+                .catch((err) =>
+                  Promise.reject(
+                    `Failed to get local chain block: ${
+                      err instanceof Error ? err.message : `${err}`
+                    }`
+                  )
+                )
+            )
+            .catch((err) => ({
+              error: err instanceof Error ? err.message : `${err}`,
+            }))
+        : { block: null, duration: null },
       getStargateClient('remote')
         .catch((err) =>
           Promise.reject(
@@ -117,16 +125,21 @@ export const up: Router.Middleware<
     return
   }
 
-  const chainBlock: UpBlock = {
+  const remoteBlock: UpBlock = {
     height: remoteChainBlock.header.height,
     timeUnixMs: new Date(remoteChainBlock.header.time).getTime(),
     timestamp: new Date(remoteChainBlock.header.time).toISOString(),
   }
-  const nodeBlock: UpBlock = {
-    height: Number(localChainBlock.header.height),
-    timeUnixMs: new Date(localChainBlock.header.time).getTime(),
-    timestamp: new Date(localChainBlock.header.time).toISOString(),
-  }
+  const localBlock: UpBlock | { error: string } | null =
+    'block' in localResponse
+      ? localResponse?.block
+        ? {
+            height: Number(localResponse.block.header.height),
+            timeUnixMs: new Date(localResponse.block.header.time).getTime(),
+            timestamp: new Date(localResponse.block.header.time).toISOString(),
+          }
+        : null
+      : localResponse
   const exportedBlock: UpBlock = {
     height: Number(state.latestBlock.height),
     timeUnixMs: Number(state.latestBlock.timeUnixMs),
@@ -134,18 +147,26 @@ export const up: Router.Middleware<
   }
 
   // If local chain is within 5 blocks of actual chain, consider it caught up.
-  const caughtUp = nodeBlock.height > chainBlock.height - 5
+  // If no local RPC, use the exported block instead.
+  const caughtUp =
+    (localBlock && 'height' in localBlock
+      ? localBlock.height
+      : exportedBlock.height) >
+    remoteBlock.height - 5
 
   ctx.status = caughtUp ? 200 : 412
   ctx.body = {
     chainId: state.chainId,
-    chainBlock,
-    nodeBlock,
+    remoteBlock,
+    localBlock,
     exportedBlock,
     caughtUp,
     timing: {
       state: stateDuration,
-      localChainBlock: localChainBlockDuration,
+      localChainBlock:
+        localResponse && 'duration' in localResponse
+          ? localResponse.duration
+          : null,
       remoteChainBlock: remoteChainBlockDuration,
     },
   }

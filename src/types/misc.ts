@@ -14,4 +14,9 @@ export type Block = {
 export type SerializedBlock = {
   height: string
   timeUnixMs: string
+  timestamp: string
+}
+
+export type NestedMap<T> = {
+  [key: string]: T | NestedMap<T> | undefined
 }

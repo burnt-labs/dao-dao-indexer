@@ -56,6 +56,10 @@ export class State extends Model {
   @Column(DataType.BIGINT)
   declare lastDistributionBlockHeightExported: string | null
 
+  @AllowNull
+  @Column(DataType.BIGINT)
+  declare lastFeegrantBlockHeightExported: string | null
+
   get latestBlock(): Block {
     return {
       height: BigInt(this.latestBlockHeight),
@@ -73,6 +77,14 @@ export class State extends Model {
         singleton: true,
       },
     })
+  }
+
+  static async mustGetSingleton(): Promise<State> {
+    const state = await State.getSingleton()
+    if (!state) {
+      throw new Error('State not found')
+    }
+    return state
   }
 
   static async updateSingleton(
@@ -95,12 +107,16 @@ export class State extends Model {
   // If singleton does not exist after a sync (which is how the DB initially
   // gets set up), create it.
   @AfterSync
-  static async createSingletonIfMissing(): Promise<State> {
+  static async createSingletonIfMissingAfterSync() {
+    await State.createSingletonIfMissing()
+  }
+
+  static async createSingletonIfMissing(chainId = ''): Promise<State> {
     let state = await State.getSingleton()
     if (!state) {
       state = await State.create({
         singleton: true,
-        chainId: '',
+        chainId,
         latestBlockHeight: 0n,
         latestBlockTimeUnixMs: 0n,
         lastStakingBlockHeightExported: 0n,
@@ -108,6 +124,7 @@ export class State extends Model {
         lastBankBlockHeightExported: 0n,
         lastGovBlockHeightExported: 0n,
         lastDistributionBlockHeightExported: 0n,
+        lastFeegrantBlockHeightExported: 0n,
       })
     }
 

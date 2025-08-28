@@ -54,6 +54,17 @@ export const dumpState: ContractFormula<DumpState> = {
       'retrieves a lot of high-level information about a DAO, including its voting and proposal modules',
   },
   compute: async (env) => {
+    // Attempt to fetch extraction, returning if found. This is faster and newer
+    // than events.
+    const extraction = await env.getExtraction(
+      env.contractAddress,
+      'dao-dao-core/dump_state'
+    )
+    if (extraction) {
+      return extraction.data as DumpState
+    }
+
+    // Otherwise fallback to events.
     const [
       adminResponse,
       configResponse,
@@ -96,7 +107,9 @@ export const dumpState: ContractFormula<DumpState> = {
           (transformation) =>
             transformation?.value ??
             // Fallback to events.
-            env.get<number>(env.contractAddress, 'active_proposal_module_count')
+            env
+              .get<number>(env.contractAddress, 'active_proposal_module_count')
+              .then((event) => event?.valueJson)
         ),
       env
         .getTransformationMatch<number>(
@@ -107,7 +120,9 @@ export const dumpState: ContractFormula<DumpState> = {
           (transformation) =>
             transformation?.value ??
             // Fallback to events.
-            env.get<number>(env.contractAddress, 'total_proposal_module_count')
+            env
+              .get<number>(env.contractAddress, 'total_proposal_module_count')
+              .then((event) => event?.valueJson)
         ),
       // Extra.
       contractAdmin.compute(env),

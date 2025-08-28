@@ -4,20 +4,22 @@ import path from 'path'
 import * as Sentry from '@sentry/node'
 import { Command } from 'commander'
 
-import { ConfigManager } from '@/config'
+import { ConfigManager, testRedisConnection } from '@/config'
 import { Block, State, loadDb } from '@/db'
 import { ExportQueue } from '@/queues/queues/export'
 import { setupMeilisearch } from '@/search'
-import { WasmCodeService } from '@/services/wasm-codes'
 import {
-  BatchedTraceExporter,
   BlockTimeFetcher,
   ChainWebSocketListener,
+  WasmCodeService,
+} from '@/services'
+import {
+  BatchedTraceExporter,
   TracerManager,
-  handlerMakers,
+  makeHandlers,
   setUpFifoJsonTracer,
 } from '@/tracer'
-import { DbType, NamedHandler, TracedEvent } from '@/types'
+import { DbType, TracedEvent } from '@/types'
 import { AutoCosmWasmClient, objectMatchesStructure } from '@/utils'
 
 // Parse arguments.
@@ -76,6 +78,13 @@ const main = async () => {
     }
   }
 
+  console.log(`[${new Date().toISOString()}] Testing Redis connection...`)
+
+  // Test Redis connection to ensure we can connect, throwing error if not.
+  await testRedisConnection(true)
+
+  console.log(`[${new Date().toISOString()}] Connecting to database...`)
+
   const dataSequelize = await loadDb({
     type: DbType.Data,
     configOverride: {
@@ -92,7 +101,15 @@ const main = async () => {
   })
 
   // Initialize state.
-  await State.createSingletonIfMissing()
+  const state = await State.createSingletonIfMissing(config.chainId)
+
+  console.log(
+    `[${new Date().toISOString()}] State initialized: chainId=${
+      state.chainId
+    } latestBlockHeight=${state.latestBlockHeight} latestBlockTimeUnixMs=${
+      state.latestBlockTimeUnixMs
+    }`
+  )
 
   // Set up meilisearch.
   await setupMeilisearch()
@@ -104,27 +121,28 @@ const main = async () => {
       })
     : null
 
+  console.log(
+    `[${new Date().toISOString()}] Connecting to ${config.remoteRpc}...`
+  )
+
   // Create CosmWasm client that batches requests.
   const autoCosmWasmClient = new AutoCosmWasmClient(config.remoteRpc)
   await autoCosmWasmClient.update()
 
+  console.log(`[${new Date().toISOString()}] Setting up handlers...`)
+
   // Set up handlers.
-  const handlers = await Promise.all(
-    Object.entries(handlerMakers).map(
-      async ([name, handlerMaker]): Promise<NamedHandler> => ({
-        name,
-        handler: await handlerMaker({
-          config,
-          autoCosmWasmClient,
-          sendWebhooks: false,
-        }),
-      })
-    )
-  )
+  const handlers = await makeHandlers({
+    chainId:
+      state.chainId || autoCosmWasmClient.chainId || config.chainId || '',
+    config,
+    autoCosmWasmClient,
+    sendWebhooks: false,
+  })
 
-  console.log(`\n[${new Date().toISOString()}] Starting tracer...`)
+  console.log(`[${new Date().toISOString()}] Starting tracer...`)
 
-  const webSocketListener = new ChainWebSocketListener()
+  const webSocketListener = new ChainWebSocketListener('NewBlock')
   const blockTimeFetcher = new BlockTimeFetcher(
     autoCosmWasmClient,
     webSocketListener
@@ -203,13 +221,21 @@ const main = async () => {
     webSocketListener.connect()
   }
 
-  // Add shutdown signal handler.
+  // Add shutdown signal handlers.
   process.on('SIGINT', () => {
     // Tell tracer to close. The rest of the data in the buffer will finish
     // processing.
     closeTracer()
     console.log(
-      `[${new Date().toISOString()}] Shutting down after handlers finish...`
+      `\n[${new Date().toISOString()}] Shutting down after handlers finish...`
+    )
+  })
+  process.on('SIGTERM', () => {
+    // Tell tracer to close. The rest of the data in the buffer will finish
+    // processing.
+    closeTracer()
+    console.log(
+      `\n[${new Date().toISOString()}] Shutting down after handlers finish...`
     )
   })
 
@@ -231,7 +257,7 @@ const main = async () => {
     process.send('ready')
   }
 
-  console.log(`[${new Date().toISOString()}] Tracer ready.`)
+  console.log(`\n[${new Date().toISOString()}] Tracer ready.`)
 
   // Wait for tracer to close. Happens on FIFO closure or if `closeTracer` is
   // manually called, such as in the SIGINT handler above.
@@ -247,7 +273,7 @@ const main = async () => {
   await manager.awaitFlush()
 
   // Stop services.
-  WasmCodeService.getInstance().stopUpdater()
+  WasmCodeService.instance.stopUpdater()
   webSocketListener.disconnect()
 
   // Close database connection.

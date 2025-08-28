@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/node'
 import { Command } from 'commander'
 
-import { ConfigManager } from '@/config'
+import { ConfigManager, testRedisConnection } from '@/config'
 import { State, loadDb } from '@/db'
 import { QueueOptions, queues } from '@/queues'
 import { WasmCodeService } from '@/services/wasm-codes'
@@ -18,8 +18,13 @@ program.option(
   '--no-webhooks',
   "don't send webhooks"
 )
+program.option(
+  '-m, --mode <mode>',
+  'mode to run in (default, background)',
+  'default'
+)
 program.parse()
-const { config: _config, webhooks } = program.opts()
+const { config: _config, webhooks, mode } = program.opts()
 
 // Load config from specific config file.
 const config = ConfigManager.load(_config)
@@ -32,6 +37,13 @@ if (config.sentryDsn) {
 }
 
 const main = async () => {
+  console.log(`[${new Date().toISOString()}] Testing Redis connection...`)
+
+  // Test Redis connection to ensure we can connect, throwing error if not.
+  await testRedisConnection(true)
+
+  console.log(`[${new Date().toISOString()}] Connecting to database...`)
+
   // Load DB on start.
   const dataSequelize = await loadDb({
     type: DbType.Data,
@@ -46,9 +58,17 @@ const main = async () => {
   })
 
   // Initialize state.
-  await State.createSingletonIfMissing()
+  const state = await State.createSingletonIfMissing(config.chainId)
 
-  console.log(`\n[${new Date().toISOString()}] Starting workers...`)
+  console.log(
+    `[${new Date().toISOString()}] State initialized: chainId=${
+      state.chainId
+    } latestBlockHeight=${state.latestBlockHeight} latestBlockTimeUnixMs=${
+      state.latestBlockTimeUnixMs
+    }`
+  )
+
+  console.log(`[${new Date().toISOString()}] Starting workers...`)
 
   // Create bull workers.
   const options: QueueOptions = {
@@ -56,13 +76,19 @@ const main = async () => {
     sendWebhooks: !!webhooks,
   }
 
-  const workers = await Promise.all(
-    queues.map(async (Queue) => {
-      const queue = new Queue(options)
-      await queue.init()
-      return queue.getWorker()
-    })
-  )
+  const workers = (
+    await Promise.all(
+      queues.map(async (Queue) => {
+        const queue = new Queue(options)
+        if (queue.mode !== mode) {
+          return []
+        }
+
+        await queue.init()
+        return queue.getWorker()
+      })
+    )
+  ).flat()
 
   // Add shutdown signal handler.
   process.on('SIGINT', () => {
@@ -73,7 +99,7 @@ const main = async () => {
       // Exit once all workers close.
       Promise.all(workers.map((worker) => worker.close())).then(async () => {
         // Stop services.
-        WasmCodeService.getInstance().stopUpdater()
+        WasmCodeService.instance.stopUpdater()
 
         // Close DB connections.
         await dataSequelize.close()
@@ -89,6 +115,8 @@ const main = async () => {
   if (process.send) {
     process.send('ready')
   }
+
+  console.log(`\n[${new Date().toISOString()}] Workers ready.`)
 }
 
 main().catch((err) => {
