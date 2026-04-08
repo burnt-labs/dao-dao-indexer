@@ -1,3 +1,4 @@
+import type Redis from 'ioredis'
 import {
   AfterDestroy,
   AfterSave,
@@ -12,9 +13,9 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript'
-import type Redis from 'ioredis'
 
 import { getRedis, getRedisConfig } from '@/config'
+
 import { Account } from './Account'
 
 export type AccountDepositWebhookRegistrationApiJson = {
