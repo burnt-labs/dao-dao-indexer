@@ -12,7 +12,9 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript'
+import type Redis from 'ioredis'
 
+import { getRedis, getRedisConfig } from '@/config'
 import { Account } from './Account'
 
 export type AccountDepositWebhookRegistrationApiJson = {
@@ -36,6 +38,9 @@ type ActiveRegistrationsCache = {
   timestamps: true,
 })
 export class AccountDepositWebhookRegistration extends Model {
+  static readonly activeRegistrationsCacheInvalidationChannel =
+    'account-deposit-webhook-registrations:invalidate'
+
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
@@ -117,9 +122,87 @@ export class AccountDepositWebhookRegistration extends Model {
 
   private static activeRegistrationsCache?: ActiveRegistrationsCache
   private static activeRegistrationsCacheTtlMs = 5_000
+  private static activeRegistrationsCacheSubscriber?: Redis
+  private static activeRegistrationsCacheSubscriberReady?: Promise<void>
 
   static invalidateActiveRegistrationsCache() {
     this.activeRegistrationsCache = undefined
+  }
+
+  static async ensureActiveRegistrationsCacheSubscription(): Promise<void> {
+    if (this.activeRegistrationsCacheSubscriberReady) {
+      await this.activeRegistrationsCacheSubscriberReady
+      return
+    }
+
+    if (!getRedisConfig()) {
+      return
+    }
+
+    const subscriber = getRedis()
+    subscriber.on('error', (error) => {
+      console.error(
+        'Error in deposit webhook registration cache invalidation subscriber:',
+        error
+      )
+    })
+    subscriber.on('message', (channel) => {
+      if (channel === this.activeRegistrationsCacheInvalidationChannel) {
+        this.invalidateActiveRegistrationsCache()
+      }
+    })
+
+    this.activeRegistrationsCacheSubscriber = subscriber
+    this.activeRegistrationsCacheSubscriberReady = subscriber
+      .subscribe(this.activeRegistrationsCacheInvalidationChannel)
+      .then(() => undefined)
+      .catch((error) => {
+        this.activeRegistrationsCacheSubscriber = undefined
+        this.activeRegistrationsCacheSubscriberReady = undefined
+        subscriber.disconnect()
+        console.error(
+          'Error subscribing to deposit webhook registration cache invalidation:',
+          error
+        )
+      })
+
+    await this.activeRegistrationsCacheSubscriberReady
+  }
+
+  static async closeActiveRegistrationsCacheSubscription(): Promise<void> {
+    const subscriber = this.activeRegistrationsCacheSubscriber
+    this.activeRegistrationsCacheSubscriber = undefined
+    this.activeRegistrationsCacheSubscriberReady = undefined
+
+    if (!subscriber) {
+      return
+    }
+
+    await subscriber.quit().catch(() => {
+      subscriber.disconnect()
+    })
+  }
+
+  static async publishActiveRegistrationsCacheInvalidation(): Promise<void> {
+    if (!getRedisConfig()) {
+      return
+    }
+
+    const publisher = getRedis()
+
+    try {
+      await publisher.publish(
+        this.activeRegistrationsCacheInvalidationChannel,
+        Date.now().toString()
+      )
+      await publisher.quit()
+    } catch (error) {
+      publisher.disconnect()
+      console.error(
+        'Error publishing deposit webhook registration cache invalidation:',
+        error
+      )
+    }
   }
 
   static async getEnabledCached(): Promise<
@@ -160,12 +243,14 @@ export class AccountDepositWebhookRegistration extends Model {
   }
 
   @AfterSave
-  static afterSaveHook() {
+  static async afterSaveHook() {
     this.invalidateActiveRegistrationsCache()
+    await this.publishActiveRegistrationsCacheInvalidation()
   }
 
   @AfterDestroy
-  static afterDestroyHook() {
+  static async afterDestroyHook() {
     this.invalidateActiveRegistrationsCache()
+    await this.publishActiveRegistrationsCacheInvalidation()
   }
 }

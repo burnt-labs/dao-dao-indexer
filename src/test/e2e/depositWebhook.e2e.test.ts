@@ -7,7 +7,7 @@ import request from 'supertest'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ConfigManager } from '@/config'
-import { Extraction, State } from '@/db'
+import { AccountDepositWebhookRegistration, Extraction, State } from '@/db'
 import { getExtractors } from '@/listener'
 import { closeAllBullQueues } from '@/queues'
 import { QueueOptions } from '@/queues/base'
@@ -53,6 +53,7 @@ describe.runIf(enabled)('deposit webhook validator e2e', () => {
 
   afterEach(async () => {
     await closeAllBullQueues()
+    await AccountDepositWebhookRegistration.closeActiveRegistrationsCacheSubscription()
     await new Promise<void>((resolve, reject) => {
       if (!receiver) {
         resolve()

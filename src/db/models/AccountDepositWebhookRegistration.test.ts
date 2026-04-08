@@ -77,6 +77,12 @@ describe('AccountDepositWebhookRegistration', () => {
   })
 
   it('invalidates the enabled-registration cache after save and destroy', async () => {
+    const publishSpy = vi
+      .spyOn(
+        AccountDepositWebhookRegistration,
+        'publishActiveRegistrationsCacheInvalidation'
+      )
+      .mockResolvedValue()
     const findAllSpy = vi.spyOn(AccountDepositWebhookRegistration, 'findAll')
     const firstRegistration = makeRegistration({
       id: 7,
@@ -95,7 +101,7 @@ describe('AccountDepositWebhookRegistration', () => {
     await AccountDepositWebhookRegistration.getEnabledCached()
     expect(findAllSpy).toHaveBeenCalledTimes(1)
 
-    AccountDepositWebhookRegistration.afterSaveHook()
+    await AccountDepositWebhookRegistration.afterSaveHook()
 
     const afterCreate =
       await AccountDepositWebhookRegistration.getEnabledCached()
@@ -105,11 +111,12 @@ describe('AccountDepositWebhookRegistration', () => {
       secondRegistration.id,
     ])
 
-    AccountDepositWebhookRegistration.afterDestroyHook()
+    await AccountDepositWebhookRegistration.afterDestroyHook()
 
     const afterDestroy =
       await AccountDepositWebhookRegistration.getEnabledCached()
     expect(findAllSpy).toHaveBeenCalledTimes(3)
     expect(afterDestroy.map(({ id }) => id)).toEqual([firstRegistration.id])
+    expect(publishSpy).toHaveBeenCalledTimes(2)
   })
 })
