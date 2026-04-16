@@ -1,12 +1,12 @@
 import request from 'supertest'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, it } from 'vitest'
 
 import { AccountDepositWebhookRegistration } from '@/db'
 import { depositWebhookManagementTokenHeader } from '@/server/routes/account/depositWebhookRegistrationAuth'
 
 import { app } from '../indexer/app'
 
-describe('DELETE /deposit-webhook-registrations/:id', () => {
+describe('GET /deposit-webhook-registrations/:id', () => {
   let registration: AccountDepositWebhookRegistration
   let anonymousRegistration: AccountDepositWebhookRegistration
   let anonymousManagementToken: string
@@ -24,8 +24,8 @@ describe('DELETE /deposit-webhook-registrations/:id', () => {
       AccountDepositWebhookRegistration.generateManagementTokenAndHash()
     anonymousManagementToken = _anonymousManagementToken
     anonymousRegistration = await AccountDepositWebhookRegistration.create({
-      description: 'Anonymous',
-      endpointUrl: 'https://anonymous.example/deposits',
+      description: 'Anonymous listener',
+      endpointUrl: 'https://partner.example/anonymous-deposits',
       watchedWallets: ['xion1anonymouswallet'],
       allowedNativeDenoms: ['uxion'],
       allowedCw20Contracts: [],
@@ -35,24 +35,14 @@ describe('DELETE /deposit-webhook-registrations/:id', () => {
 
   it('returns error if no management or account token', async () => {
     await request(app.callback())
-      .delete(`/deposit-webhook-registrations/${registration.id}`)
+      .get(`/deposit-webhook-registrations/${registration.id}`)
       .expect(401)
       .expect({
         error: 'No deposit webhook management token.',
       })
   })
 
-  it('returns error if registration does not exist', async () => {
-    await request(app.callback())
-      .delete(`/deposit-webhook-registrations/${registration.id + 1}`)
-      .set(depositWebhookManagementTokenHeader, anonymousManagementToken)
-      .expect(404)
-      .expect({
-        error: 'Deposit webhook registration not found.',
-      })
-  })
-
-  it('deletes a registration with its management token', async () => {
+  it('gets an existing registration with its management token', async () => {
     const { token: managementToken, hash } =
       AccountDepositWebhookRegistration.generateManagementTokenAndHash()
     await registration.update({
@@ -60,23 +50,21 @@ describe('DELETE /deposit-webhook-registrations/:id', () => {
     })
 
     await request(app.callback())
-      .delete(`/deposit-webhook-registrations/${registration.id}`)
+      .get(`/deposit-webhook-registrations/${registration.id}`)
       .set(depositWebhookManagementTokenHeader, managementToken)
-      .expect(204)
-
-    await expect(
-      AccountDepositWebhookRegistration.findByPk(registration.id)
-    ).resolves.toBeNull()
+      .expect(200)
+      .expect({
+        registration: registration.apiJson,
+      })
   })
 
-  it('deletes an anonymous registration with the management token', async () => {
+  it('gets an anonymous registration with the management token', async () => {
     await request(app.callback())
-      .delete(`/deposit-webhook-registrations/${anonymousRegistration.id}`)
+      .get(`/deposit-webhook-registrations/${anonymousRegistration.id}`)
       .set(depositWebhookManagementTokenHeader, anonymousManagementToken)
-      .expect(204)
-
-    await expect(
-      AccountDepositWebhookRegistration.findByPk(anonymousRegistration.id)
-    ).resolves.toBeNull()
+      .expect(200)
+      .expect({
+        registration: anonymousRegistration.apiJson,
+      })
   })
 })

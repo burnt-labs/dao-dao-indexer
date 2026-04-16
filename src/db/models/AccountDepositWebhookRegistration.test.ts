@@ -8,7 +8,6 @@ describe('AccountDepositWebhookRegistration', () => {
   ) =>
     ({
       id: 7,
-      accountPublicKey: 'account',
       description: null,
       endpointUrl: 'https://partner.example/deposits',
       authHeader: null,

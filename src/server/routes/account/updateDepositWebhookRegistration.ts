@@ -1,16 +1,16 @@
 import Router from '@koa/router'
 import { DefaultContext } from 'koa'
 
-import {
-  AccountDepositWebhookRegistration,
-  AccountDepositWebhookRegistrationApiJson,
-} from '@/db'
+import { AccountDepositWebhookRegistrationApiJson } from '@/db'
 
+import {
+  DepositWebhookRegistrationState,
+  loadAuthorizedDepositWebhookRegistration,
+} from './depositWebhookRegistrationAuth'
 import { validateAndNormalizeDepositWebhookRegistration } from './depositWebhookRegistrationUtils'
-import { AccountState } from './types'
 
 type UpdateDepositWebhookRegistrationRequest = Pick<
-  AccountDepositWebhookRegistration,
+  AccountDepositWebhookRegistrationApiJson,
   | 'description'
   | 'endpointUrl'
   | 'authHeader'
@@ -30,22 +30,14 @@ type UpdateDepositWebhookRegistrationResponse =
     }
 
 export const updateDepositWebhookRegistration: Router.Middleware<
-  AccountState,
+  DepositWebhookRegistrationState,
   DefaultContext,
   UpdateDepositWebhookRegistrationResponse
 > = async (ctx) => {
-  const registration = await AccountDepositWebhookRegistration.findOne({
-    where: {
-      id: ctx.params.id,
-      accountPublicKey: ctx.state.account.publicKey,
-    },
-  })
-
+  const registration = await loadAuthorizedDepositWebhookRegistration(
+    ctx as any
+  )
   if (!registration) {
-    ctx.status = 404
-    ctx.body = {
-      error: 'Deposit webhook registration not found.',
-    }
     return
   }
 

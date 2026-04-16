@@ -12,9 +12,8 @@ import { getExtractors } from '@/listener'
 import { closeAllBullQueues } from '@/queues'
 import { QueueOptions } from '@/queues/base'
 import { ExtractQueue, WebhooksQueue } from '@/queues/queues'
-import { app as accountApp } from '@/server/test/account/app'
+import { app as indexerApp } from '@/server/test/indexer/app'
 import { BlockIterator } from '@/services'
-import { getAccountWithAuth } from '@/test/utils'
 import { ExtractableTxInput, ExtractorEnv } from '@/types'
 import { AutoCosmWasmClient } from '@/utils'
 
@@ -102,15 +101,12 @@ describe.runIf(enabled)('deposit webhook validator e2e', () => {
       }
     ).port
 
-    const { token } = await getAccountWithAuth()
-
     const watchedWallet = await DirectSecp256k1HdWallet.generate(12, {
       prefix: config.bech32Prefix,
     }).then(async (wallet) => (await wallet.getAccounts())[0].address)
 
-    await request(accountApp.callback())
+    await request(indexerApp.callback())
       .post('/deposit-webhook-registrations')
-      .set('Authorization', `Bearer ${token}`)
       .send({
         description: 'validator e2e',
         endpointUrl: `http://127.0.0.1:${receiverPort}/deposits`,

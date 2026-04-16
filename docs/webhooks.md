@@ -155,8 +155,8 @@ const makeIndexerCwReceiptPaid: WebhookMaker<WasmStateEvent> = (config) =>
 
 The Xion deposit webhook integration emits normalized deposit detections as
 `Extraction` events and forwards them through the built-in webhook queue.
-Registrations are created per account through the authenticated account API, not
-through static indexer config.
+Registrations are chain-scoped and created through the per-chain indexer API,
+not through static indexer config or the global accounts API.
 
 This is a deposit-detection webhook, not a generic balance-change feed. It only
 fires when the indexer observes a matching inbound native-bank or CW20 transfer
@@ -181,7 +181,6 @@ Example:
 
 ```sh
 curl -X POST https://daodaoindexer.burnt.com/deposit-webhook-registrations \
-  -H 'Authorization: Bearer <account-jwt>' \
   -H 'Content-Type: application/json' \
   -d '{
     "description": "Sandbox deposit listener",
@@ -194,6 +193,10 @@ curl -X POST https://daodaoindexer.burnt.com/deposit-webhook-registrations \
     "enabled": true
   }'
 ```
+
+The create response includes a one-time `managementToken`. Persist it and send
+it in the `X-Deposit-Webhook-Token` header to read, update, or delete the
+registration later without account login.
 
 Each registration owns:
 

@@ -1,21 +1,25 @@
 import Router from '@koa/router'
 import { DefaultContext } from 'koa'
 
+import { AccountDepositWebhookRegistrationApiJson } from '@/db'
+
 import {
   DepositWebhookRegistrationState,
   loadAuthorizedDepositWebhookRegistration,
 } from './depositWebhookRegistrationAuth'
 
-type DeleteDepositWebhookRegistrationResponse =
-  | undefined
+type GetDepositWebhookRegistrationResponse =
+  | {
+      registration: AccountDepositWebhookRegistrationApiJson
+    }
   | {
       error: string
     }
 
-export const deleteDepositWebhookRegistration: Router.Middleware<
+export const getDepositWebhookRegistration: Router.Middleware<
   DepositWebhookRegistrationState,
   DefaultContext,
-  DeleteDepositWebhookRegistrationResponse
+  GetDepositWebhookRegistrationResponse
 > = async (ctx) => {
   const registration = await loadAuthorizedDepositWebhookRegistration(
     ctx as any
@@ -24,6 +28,8 @@ export const deleteDepositWebhookRegistration: Router.Middleware<
     return
   }
 
-  await registration.destroy()
-  ctx.status = 204
+  ctx.status = 200
+  ctx.body = {
+    registration: registration.apiJson,
+  }
 }
