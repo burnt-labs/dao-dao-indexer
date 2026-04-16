@@ -21,5 +21,5 @@ RUN adduser --disabled-password --gecos "" argus
 RUN chown -R argus:argus /app
 USER argus
 
-# Default command to run both the accounts and indexer APIs.
-CMD ["node", "dist/server/serve.js", "--both"]
+# Default command to run the server
+CMD ["node", "dist/server/serve.js"]
