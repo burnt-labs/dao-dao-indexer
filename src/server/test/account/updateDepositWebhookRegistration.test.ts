@@ -45,8 +45,11 @@ describe('PATCH /deposit-webhook-registrations/:id', () => {
   })
 
   it('returns error if registration not found', async () => {
+    const missingRegistrationId =
+      Math.max(registration.id, anonymousRegistration.id) + 1000
+
     await request(app.callback())
-      .patch(`/deposit-webhook-registrations/${registration.id + 1}`)
+      .patch(`/deposit-webhook-registrations/${missingRegistrationId}`)
       .set(depositWebhookManagementTokenHeader, anonymousManagementToken)
       .expect(404)
       .expect({

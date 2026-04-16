@@ -43,8 +43,11 @@ describe('DELETE /deposit-webhook-registrations/:id', () => {
   })
 
   it('returns error if registration does not exist', async () => {
+    const missingRegistrationId =
+      Math.max(registration.id, anonymousRegistration.id) + 1000
+
     await request(app.callback())
-      .delete(`/deposit-webhook-registrations/${registration.id + 1}`)
+      .delete(`/deposit-webhook-registrations/${missingRegistrationId}`)
       .set(depositWebhookManagementTokenHeader, anonymousManagementToken)
       .expect(404)
       .expect({
