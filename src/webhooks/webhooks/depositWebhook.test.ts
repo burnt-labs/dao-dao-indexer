@@ -12,7 +12,6 @@ describe('Deposit webhook', () => {
   ) =>
     ({
       id: 7,
-      accountPublicKey: 'account',
       description: 'Sandbox deposit listener',
       endpointUrl: 'https://partner.example/deposits',
       authHeader: 'Authorization',

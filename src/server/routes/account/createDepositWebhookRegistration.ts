@@ -6,8 +6,8 @@ import {
   AccountDepositWebhookRegistrationApiJson,
 } from '@/db'
 
+import { DepositWebhookRegistrationState } from './depositWebhookRegistrationAuth'
 import { validateAndNormalizeDepositWebhookRegistration } from './depositWebhookRegistrationUtils'
-import { AccountState } from './types'
 
 type CreateDepositWebhookRegistrationRequest = Pick<
   AccountDepositWebhookRegistration,
@@ -24,13 +24,14 @@ type CreateDepositWebhookRegistrationRequest = Pick<
 type CreateDepositWebhookRegistrationResponse =
   | {
       registration: AccountDepositWebhookRegistrationApiJson
+      managementToken: string
     }
   | {
       error: string
     }
 
 export const createDepositWebhookRegistration: Router.Middleware<
-  AccountState,
+  DepositWebhookRegistrationState,
   DefaultContext,
   CreateDepositWebhookRegistrationResponse
 > = async (ctx) => {
@@ -46,17 +47,18 @@ export const createDepositWebhookRegistration: Router.Middleware<
     return
   }
 
-  const registration =
-    await ctx.state.account.$create<AccountDepositWebhookRegistration>(
-      'depositWebhookRegistration',
-      {
-        ...validation.normalized,
-        enabled: validation.normalized.enabled ?? true,
-      }
-    )
+  const { token: managementToken, hash: hashedManagementToken } =
+    AccountDepositWebhookRegistration.generateManagementTokenAndHash()
+
+  const registration = await AccountDepositWebhookRegistration.create({
+    ...validation.normalized,
+    enabled: validation.normalized.enabled ?? true,
+    hashedManagementToken,
+  })
 
   ctx.status = 201
   ctx.body = {
     registration: registration.apiJson,
+    managementToken,
   }
 }

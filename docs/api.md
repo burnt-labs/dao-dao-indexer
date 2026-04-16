@@ -364,28 +364,6 @@ On error:
 }
 ```
 
-#### GET `/deposit-webhook-registrations`
-
-List deposit webhook registrations for the authenticated account.
-
-Response:
-
-```ts
-{
-  "registrations": {
-    "id": number
-    "description": string | null
-    "endpointUrl": string
-    "authHeader": string | null
-    "authToken": string | null
-    "watchedWallets": string[]
-    "allowedNativeDenoms": string[]
-    "allowedCw20Contracts": string[]
-    "enabled": boolean
-  }[]
-}
-```
-
 #### POST `/deposit-webhook-registrations`
 
 Create a new deposit webhook registration.
@@ -393,6 +371,10 @@ Create a new deposit webhook registration.
 This registers a deposit-detection listener for matching inbound transfers to
 the supplied watched wallets and asset filters. It is not a generic
 balance-change subscription.
+
+These routes are served by the per-chain indexer API, not the global accounts
+API. Account login is not required. Creation returns a one-time management
+token that can be used to fetch, update, or delete the registration later.
 
 Request:
 
@@ -424,6 +406,7 @@ Response:
     "allowedCw20Contracts": string[]
     "enabled": boolean
   }
+  "managementToken": string
 }
 ```
 
@@ -443,7 +426,6 @@ Example:
 
 ```sh
 curl -X POST https://daodaoindexer.burnt.com/deposit-webhook-registrations \
-  -H 'Authorization: Bearer <account-jwt>' \
   -H 'Content-Type: application/json' \
   -d '{
     "description": "Production deposit listener",
@@ -457,9 +439,37 @@ curl -X POST https://daodaoindexer.burnt.com/deposit-webhook-registrations \
   }'
 ```
 
+#### GET `/deposit-webhook-registrations/:id`
+
+Get a specific deposit webhook registration.
+
+This requires:
+- `X-Deposit-Webhook-Token: <management-token>`
+
+Response:
+
+```ts
+{
+  "registration": {
+    "id": number
+    "description": string | null
+    "endpointUrl": string
+    "authHeader": string | null
+    "authToken": string | null
+    "watchedWallets": string[]
+    "allowedNativeDenoms": string[]
+    "allowedCw20Contracts": string[]
+    "enabled": boolean
+  }
+}
+```
+
 #### PATCH `/deposit-webhook-registrations/:id`
 
 Update an existing deposit webhook registration.
+
+This requires:
+- `X-Deposit-Webhook-Token: <management-token>`
 
 Request:
 
@@ -506,7 +516,7 @@ Example:
 
 ```sh
 curl -X PATCH https://daodaoindexer.burnt.com/deposit-webhook-registrations/7 \
-  -H 'Authorization: Bearer <account-jwt>' \
+  -H 'X-Deposit-Webhook-Token: <management-token>' \
   -H 'Content-Type: application/json' \
   -d '{
     "watchedWallets": ["xion1watchedwallet", "xion1thirdwallet"],
@@ -519,6 +529,9 @@ curl -X PATCH https://daodaoindexer.burnt.com/deposit-webhook-registrations/7 \
 #### DELETE `/deposit-webhook-registrations/:id`
 
 Delete a deposit webhook registration.
+
+This requires:
+- `X-Deposit-Webhook-Token: <management-token>`
 
 Empty response on success.
 
@@ -534,7 +547,7 @@ Example:
 
 ```sh
 curl -X DELETE https://daodaoindexer.burnt.com/deposit-webhook-registrations/7 \
-  -H 'Authorization: Bearer <account-jwt>'
+  -H 'X-Deposit-Webhook-Token: <management-token>'
 ```
 
 #### GET `/webhooks`

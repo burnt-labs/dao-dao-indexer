@@ -1,22 +1,20 @@
+import { createHash, randomUUID } from 'crypto'
+
 import type Redis from 'ioredis'
 import {
   AfterDestroy,
   AfterSave,
   AllowNull,
   AutoIncrement,
-  BelongsTo,
   Column,
   DataType,
   Default,
-  ForeignKey,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript'
 
 import { getRedis, getRedisConfig } from '@/config'
-
-import { Account } from './Account'
 
 export type AccountDepositWebhookRegistrationApiJson = {
   id: number
@@ -37,23 +35,23 @@ type ActiveRegistrationsCache = {
 
 @Table({
   timestamps: true,
+  indexes: [
+    {
+      fields: ['enabled'],
+    },
+    {
+      fields: ['hashedManagementToken'],
+    },
+  ],
 })
 export class AccountDepositWebhookRegistration extends Model {
   static readonly activeRegistrationsCacheInvalidationChannel =
-    'account-deposit-webhook-registrations:invalidate'
+    'deposit-webhook-registrations:invalidate'
 
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
   declare id: number
-
-  @AllowNull(false)
-  @ForeignKey(() => Account)
-  @Column(DataType.STRING)
-  declare accountPublicKey: string
-
-  @BelongsTo(() => Account)
-  declare account: Account
 
   @AllowNull
   @Column(DataType.STRING)
@@ -91,6 +89,10 @@ export class AccountDepositWebhookRegistration extends Model {
   @Column(DataType.BOOLEAN)
   declare enabled: boolean
 
+  @AllowNull
+  @Column(DataType.STRING)
+  declare hashedManagementToken: string | null
+
   get apiJson(): AccountDepositWebhookRegistrationApiJson {
     return {
       id: this.id,
@@ -119,6 +121,22 @@ export class AccountDepositWebhookRegistration extends Model {
       (this.watchedWallets || []).includes(wallet) &&
       (this.allowedCw20Contracts || []).includes(contractAddress)
     )
+  }
+
+  static generateManagementTokenAndHash(): {
+    token: string
+    hash: string
+  } {
+    const token = randomUUID()
+    const hash = this.hashManagementToken(token)
+    return {
+      token,
+      hash,
+    }
+  }
+
+  static hashManagementToken(token: string): string {
+    return createHash('sha512').update(token).digest('base64')
   }
 
   private static activeRegistrationsCache?: ActiveRegistrationsCache

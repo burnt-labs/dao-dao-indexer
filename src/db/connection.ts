@@ -50,6 +50,7 @@ type LoadDbOptions = {
 const getModelsForType = (type: DbType): SequelizeOptions['models'] =>
   type === DbType.Data
     ? [
+        AccountDepositWebhookRegistration,
         BankDenomBalance,
         BankStateEvent,
         Block,
@@ -74,7 +75,6 @@ const getModelsForType = (type: DbType): SequelizeOptions['models'] =>
     ? [
         Account,
         AccountCodeIdSet,
-        AccountDepositWebhookRegistration,
         AccountKey,
         AccountKeyCredit,
         AccountWebhook,
