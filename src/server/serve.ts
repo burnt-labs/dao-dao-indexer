@@ -22,6 +22,7 @@ program.option(
   'path to config file, falling back to config.json'
 )
 program.option('-a, --accounts', 'run account server instead of indexer server')
+program.option('-b, --both', 'run both the account and indexer servers')
 program.parse()
 const options = program.opts()
 
@@ -29,6 +30,7 @@ const options = program.opts()
 const config = ConfigManager.load(options.config)
 
 const accounts = !!options.accounts
+const both = !!options.both
 
 // Setup app.
 const app = new Koa()
@@ -84,9 +86,9 @@ const main = async () => {
     type: DbType.Accounts,
   })
 
-  // Only connect to data if we're not serving the accounts API (i.e. we're
-  // serving indexer data).
-  if (!accounts) {
+  // Connect to data if serving the indexer API, either standalone or alongside
+  // the accounts API.
+  if (!accounts || both) {
     sequelize = await loadDb({
       type: DbType.Data,
     })
@@ -121,6 +123,7 @@ const main = async () => {
   await setUpRouter(app, {
     config,
     accounts,
+    both,
   })
 
   app.listen(options.port, () => {

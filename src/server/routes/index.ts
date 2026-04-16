@@ -11,13 +11,15 @@ import { setUpBullBoard } from './jobs'
 
 export type SetupRouterOptions = {
   config: Config
-  // Whether to run the account server. If false, runs indexer server.
+  // Whether to run the account server.
   accounts: boolean
+  // Whether to also run the indexer server in the same process.
+  both?: boolean
 }
 
 export const setUpRouter = async (
   app: Koa,
-  { config, accounts }: SetupRouterOptions
+  { config, accounts, both }: SetupRouterOptions
 ) => {
   const router = new Router()
 
@@ -40,7 +42,9 @@ export const setUpRouter = async (
   if (accounts) {
     // Account API.
     router.use(accountRouter.routes(), accountRouter.allowedMethods())
-  } else {
+  }
+
+  if (!accounts || both) {
     // Background jobs dashboard.
     await setUpBullBoard(app, config)
 
