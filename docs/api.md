@@ -425,7 +425,7 @@ or error:
 Example:
 
 ```sh
-curl -X POST https://daodaoindexer.burnt.com/deposit-webhook-registrations \
+curl -X POST https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations \
   -H 'Content-Type: application/json' \
   -d '{
     "description": "Production deposit listener",
@@ -515,7 +515,7 @@ or error:
 Example:
 
 ```sh
-curl -X PATCH https://daodaoindexer.burnt.com/deposit-webhook-registrations/7 \
+curl -X PATCH https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations/7 \
   -H 'X-Deposit-Webhook-Token: <management-token>' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -546,7 +546,7 @@ On error:
 Example:
 
 ```sh
-curl -X DELETE https://daodaoindexer.burnt.com/deposit-webhook-registrations/7 \
+curl -X DELETE https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations/7 \
   -H 'X-Deposit-Webhook-Token: <management-token>'
 ```
 

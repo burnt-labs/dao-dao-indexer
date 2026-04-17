@@ -162,6 +162,27 @@ This is a deposit-detection webhook, not a generic balance-change feed. It only
 fires when the indexer observes a matching inbound native-bank or CW20 transfer
 into a watched wallet for an allowed asset.
 
+### Using it on Xion testnet and mainnet
+
+The same API shape is used on both networks. The only difference is the
+`chainId` segment in the public indexer URL:
+
+- Testnet base URL: `https://indexer.daodao.zone/xion-testnet-2`
+- Mainnet base URL: `https://indexer.daodao.zone/xion-mainnet-1`
+
+Registration flow:
+
+1. `POST /{chainId}/deposit-webhook-registrations` to create a registration.
+2. Persist the returned `managementToken`.
+3. Use `X-Deposit-Webhook-Token: <managementToken>` with:
+   - `GET /{chainId}/deposit-webhook-registrations/:id`
+   - `PATCH /{chainId}/deposit-webhook-registrations/:id`
+   - `DELETE /{chainId}/deposit-webhook-registrations/:id`
+4. Wait for a matching inbound deposit into one of the watched wallets.
+
+Your callback URL must be publicly reachable over HTTPS. The indexer sends a
+`POST` request to that URL whenever it detects a matching deposit.
+
 Create a registration with `POST /deposit-webhook-registrations`:
 
 ```ts
@@ -180,7 +201,7 @@ Create a registration with `POST /deposit-webhook-registrations`:
 Example:
 
 ```sh
-curl -X POST https://daodaoindexer.burnt.com/deposit-webhook-registrations \
+curl -X POST https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations \
   -H 'Content-Type: application/json' \
   -d '{
     "description": "Sandbox deposit listener",
@@ -194,9 +215,45 @@ curl -X POST https://daodaoindexer.burnt.com/deposit-webhook-registrations \
   }'
 ```
 
+Example mainnet registration:
+
+```sh
+curl -X POST https://indexer.daodao.zone/xion-mainnet-1/deposit-webhook-registrations \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "description": "Mainnet deposit listener",
+    "endpointUrl": "https://partner.example/deposits",
+    "watchedWallets": ["xion1watchedwallet"],
+    "allowedNativeDenoms": ["uxion"],
+    "allowedCw20Contracts": [],
+    "enabled": true
+  }'
+```
+
 The create response includes a one-time `managementToken`. Persist it and send
 it in the `X-Deposit-Webhook-Token` header to read, update, or delete the
 registration later without account login.
+
+Example fetch, update, and delete:
+
+```sh
+curl https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations/7 \
+  -H 'X-Deposit-Webhook-Token: <management-token>'
+```
+
+```sh
+curl -X PATCH https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations/7 \
+  -H 'Content-Type: application/json' \
+  -H 'X-Deposit-Webhook-Token: <management-token>' \
+  -d '{
+    "enabled": false
+  }'
+```
+
+```sh
+curl -X DELETE https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations/7 \
+  -H 'X-Deposit-Webhook-Token: <management-token>'
+```
 
 Each registration owns:
 
