@@ -1,7 +1,10 @@
-# Argus
+# Argus (Burnt Fork)
 
 A state-based indexer and API builder for the Cosmos SDK, originally built for
-[DAO DAO](https://daodao.zone).
+[DAO DAO](https://daodao.zone). This is the Burnt fork, configured to index
+XION mainnet and testnet.
+
+Forked from [noahsaso/argus](https://github.com/noahsaso/argus).
 
 There are two main data ingestion tools:
 
@@ -319,6 +322,56 @@ SELECT table_name, pg_size_pretty(pg_relation_size(quote_ident(table_name))) AS 
 ```sql
 SELECT datname AS database_name, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datname LIKE '%net' ORDER BY pg_database_size(datname) DESC;
 ```
+
+## Deployment
+
+The indexer is deployed as a Docker container image published to GitHub Container Registry.
+
+### Release process
+
+1. Create and push a version tag:
+
+   ```bash
+   git tag v0.4.4
+   git push origin v0.4.4
+   ```
+
+2. The `docker-build-push.yml` workflow triggers automatically on tag pushes matching `v*`. It:
+   - Builds a multi-platform image (`linux/amd64`, `linux/arm64`)
+   - Pushes to `ghcr.io/burnt-labs/dao-dao-indexer`
+   - Tags: semver (`0.4.4`, `0.4`), short SHA, and `latest`
+   - Runs a Trivy vulnerability scan and uploads results to GitHub Security
+
+3. The production server pulls the new image and restarts. This is currently a manual step — contact @filament for access.
+
+### CI
+
+Every push to `main` also triggers the `ci.yml` workflow which runs lint, build, and Docker-based tests. Merges to `main` build and push a `latest` image.
+
+### Running locally
+
+```bash
+# Build and run the Docker image
+docker build -t argus .
+docker run -p 3420:3420 -v $(pwd)/config.json:/app/config.json argus
+```
+
+Or use the development compose stack:
+
+```bash
+npm run serve:dev
+```
+
+### Environment and secrets
+
+Production secrets are managed via [Infisical](https://infisical.com). To run locally with production config:
+
+```bash
+npx @infisical/cli login
+npm run with-infisical -- npm run serve
+```
+
+For local development, copy `config.json.example` to `config.json` and update the values for your environment.
 
 ## Attribution
 
