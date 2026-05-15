@@ -1,328 +1,289 @@
-# Argus
+# dao-dao-indexer
 
-A state-based indexer and API builder for the Cosmos SDK, originally built for
-[DAO DAO](https://daodao.zone).
+> **Burnt Labs fork** of [Argus](https://github.com/noahsaso/argus) — the DAO DAO indexer for Cosmos SDK chains, adapted for **XION**.
 
-There are two main data ingestion tools:
+This indexer listens to the XION blockchain, extracts DAO-related events, and serves indexed data via a REST API. The [Burnt dev dashboard](https://github.com/burnt-labs/dao-dao-ui) reads from this indexer to display DAO governance, proposals, and treasury data.
 
-- [tracer](./src/scripts/tracer.ts)
-- [listener](./src/scripts/listener.ts)
+**Upstream:** [noahsaso/argus](https://github.com/noahsaso/argus)
 
-### Tracer
+---
 
-The tracer ingests state events from a blockchain node processing blocks, like
-an RPC or validator. Cosmos SDK binaries have a `--trace-store` flag that allows
-dumping read/write/delete events from its KV store to a file. `mkfifo` is a
-Linux command that creates a FIFO file, effectively a named pipe that looks like
-a file on the filesystem—perfect for blocking cross-process communication. This
-ensures the blockchain node won't progress until the state tracer reads each
-line written to the FIFO file. If the tracer fails or lags, the node will wait,
-ensuring no data is missed/lost.
+## Burnt-Specific Modifications
 
-In order to use the tracer, the preliminary setup steps are:
+This fork extends upstream Argus with the following XION-specific features:
 
-1. Set up a typical Cosmos SDK node and run it with the flag set, like:
+| Feature | Description |
+|---------|-------------|
+| **XION extractors** | Custom extractors for XION assets (`xion-asset`) and marketplace (`xion-marketplace`) contracts — see `src/listener/extractors/xion/` |
+| **Deposit webhooks** | Webhook-based deposit notifications for account-funded wallets — `src/listener/extractors/xion/depositWebhook.ts` |
+| **cw-receipt payment integration** | Payment processing via the `cw-receipt` contract pattern with `uxion` native denom — configured via the `payment` block in config |
+| **Account webhooks process** | Dedicated `account-webhooks` process in `ecosystem.config.js` for handling deposit webhook registrations |
+| **Infisical-managed secrets** | Production config and secrets injected at runtime via [Infisical](https://infisical.com) — no production configs committed to the repo |
 
-   `gaiad start --trace-store ~/path/to/home/trace.pipe`.
+The upstream README is preserved at [`docs/upstream-argus-readme.md`](docs/upstream-argus-readme.md) for reference.
 
-2. Run `mkfifo ~/path/to/home/trace.pipe`. `~/path/to/home` corresponds to the
-   `home` config field in `config.json`.
+---
 
-Data processors for the tracer can be found in
-[src/tracer/handlers](./src/tracer/handlers/) and are typically associated with
-a specific module, like `wasm` or `bank`. They are responsible for decoding and
-matching a state event and then exporting it to the database.
+## Prerequisites
 
-There are many [DB models](./src/db/models/) corresponding to different handlers
-and event types, with indexes optimized for queries.
+| Dependency | Version | Notes |
+|-----------|---------|-------|
+| **Node.js** | 22 | Used in Docker image and CI |
+| **PostgreSQL** | 17 | For the accounts database |
+| **TimescaleDB** | 2.18.1-pg17 | Required for the data database — plain Postgres will **not** work |
+| **Redis** | Latest | Caching and job queue |
+| **Docker** | 20+ | Recommended for local development |
+| **Infisical CLI** | Latest | Required for production (secrets/config injection) |
 
-### Listener
+---
 
-The listener is a lightweight block/transaction/message/event processor, like
-most other indexers that exist (e.g. SubQuery, The Graph, etc.). This only
-relies on an RPC, the `remoteRpc` field in `config.json`.
+## Quick Start
 
-Data extractors for the listener can be found in
-[src/listener/extractors](./src/listener/extractors/). They depend on data
-sources, found in [src/listener/sources](./src/listener/sources), which are
-responsible for finding specific data in a transaction (probably a message or
-event), and then extractors are responsible for exporting the found data to the
-database.
-
-Extractors typically save data to [`Extraction`](./src/db/models/Extraction.ts)
-models and can associate data with any address/name for queries.
-
-## Setup
-
-1. Create `config.json` from example `config.json.example`.
-
-2. Install dependencies.
-
-   ```bash
-   npm install
-   ```
-
-3. Build the indexer.
-
-   ```bash
-   npm run build
-   ```
-
-4. Setup the database.
-
-   ```bash
-   # try migrating to generate the migrations table
-   # this should FAIL, but that is ok
-   npm run db:migrate:data
-
-   npm run db:setup
-   ```
-
-5. Run the tracer, listener, or server.
-
-   ```bash
-   npm run trace:prod
-   # OR
-   npm run listen:prod
-   # OR
-   npm run serve:prod
-   ```
-
-6. Tell pm2 to run on startup.
-
-   ```bash
-   pm2 startup
-   ```
-
-### Config
-
-Config defaults to loading from `config.json` in the root of the project, though
-it supports loading from environment variables:
-
-`env:KEY_NAME` in a field inside `config.json` will be replaced with the value of
-the `KEY_NAME` environment variable, erroring if the variable is not set.
-
-`envOptional:KEY_NAME` will not error if the variable is not set.
-
-Environment variables/secrets are managed via
-[Infisical](https://infisical.com) and used when deploying production servers.
+### Docker (Recommended)
 
 ```bash
-# Log in via web browser (set INFISICAL_TOKEN in .env)
-npx @infisical/cli login
+# Clone the repo
+git clone https://github.com/burnt-labs/dao-dao-indexer.git
+cd dao-dao-indexer
 
-# Log in via Infisical Universal Auth and save the token to .env
-echo "INFISICAL_TOKEN=$(npx @infisical/cli login --method universal-auth --client-id <client-id> --client-secret <client-secret> --plain)" >> .env
-# Save the project ID to .env
-echo "INFISICAL_PROJECT_ID=$(cat .infisical.json | jq -r '.workspaceId')" >> .env
-# Save the environment to .env
-echo "INFISICAL_ENVIRONMENT=$(cat .infisical.json | jq -r '.defaultEnvironment')" >> .env
+# Copy the dev config (uses sensible defaults for Docker services)
+cp config-dev.json config.json
 
-# Run a command with the environment variables set
-npm run with-infisical -- <command>
-
-# e.g. run the server
-npm run with-infisical -- npm run serve
-
-# if you need to run a command that uses inline env variables in the cmd, wrap
-# it in `bash -c '...'` to avoid eager shell expansion since the variables
-# aren't defined until the script is run
-npm run with-infisical -- bash -c 'echo $INFISICAL_ENVIRONMENT'
+# Start all services
+docker compose -f compose.dev.yml up
 ```
 
-## Usage
+This starts:
+- **server** — API on port `3420`
+- **listener** — blockchain event listener on port `3421`
+- **workers** — background job processors
+- **db_data** — TimescaleDB instance
+- **db_accounts** — PostgreSQL instance
+- **redis** — cache and queue
 
-Test the indexer:
+### Without Docker
 
 ```bash
-npm run docker:test
-```
+# Install dependencies
+npm install
 
-Build the indexer:
-
-```bash
+# Build
 npm run build
+
+# Set up databases (requires running PostgreSQL + TimescaleDB + Redis)
+npm run db:init -- -d
+npm run db:seed:dev
+
+# Start the API server
+npm run serve:dev:nodocker
 ```
 
-Run the exporter:
+You'll need to provide a `config.json` (or use `-c <path>`) with your local database and Redis connection details. See [`config.json.example`](config.json.example) as a starting template.
+
+---
+
+## Configuration
+
+### Config File Structure
+
+The indexer reads a JSON config file (default: `config.json`, or via `-c <path>`). Key sections:
+
+```jsonc
+{
+  "chainId": "xion-mainnet-1",       // XION chain ID
+  "localRpc": "http://localhost:26657",
+  "remoteRpc": "https://xion-rpc.burnt.com",
+  "bech32Prefix": "xion",
+  "home": "~/.xion/indexer",
+
+  "redis": { "host": "127.0.0.1", "password": "" },
+
+  "db": {
+    "data": {
+      "dialect": "postgres",
+      "host": "localhost",
+      "database": "data_db",
+      "username": "user",
+      "password": "pass"
+    },
+    "accounts": {
+      "dialect": "postgres",
+      "host": "localhost",
+      "database": "accounts_db",
+      "username": "user",
+      "password": "pass"
+    }
+  },
+
+  // Payment integration (Burnt-specific)
+  "payment": {
+    "cwReceiptAddress": "xion1...",
+    "cwReceiptWebhookSecret": "secret",
+    "nativeDenomAccepted": "uxion",
+    "creditScaleFactor": 1
+  },
+
+  "accountsJwtSecret": "jwt-secret-for-accounts-api",
+
+  "codeIds": {
+    "dao-dao-core": [123],
+    "xion-asset": [456],
+    "xion-marketplace": [789]
+  }
+}
+```
+
+### XION Testnet / Mainnet
+
+Production configs (`config.testnet.json`, `config.mainnet.json`) are **not committed** to this repo. They are injected at runtime via **Infisical**.
+
+- **Testnet reference:** `xion-test.config.json` — the only committed XION config, used for E2E tests against `localxion-1`
+- **Template:** `config.json.example` — upstream template (Jun-based, adapt for XION)
+- **Dev:** `config-dev.json` — local Docker dev config
+
+To run against a specific network:
 
 ```bash
-npm run export
+# Testnet (config managed by Infisical)
+npm run trace:prod    # starts tracer + workers
+npm run listen:prod   # starts listener + workers
+
+# Or manually with a config file:
+npm run serve:dev:nodocker:testnet
+npm run serve:dev:nodocker:mainnet
 ```
 
-Run the API server:
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `CONFIG_FILE` | Path to config JSON (used by Docker Compose) |
+| `NODE_ENV` | `development` or `production` |
+| Infisical-managed | Database passwords, RPC URLs, secrets — injected by `npm run with-infisical` |
+
+---
+
+## Running Against XION
+
+### Testnet
 
 ```bash
-npm run serve
+# 1. Ensure Infisical is configured for the project
+infisical login
+
+# 2. Run the tracer (indexes historical blocks)
+npm run trace:prod
+
+# 3. In a separate terminal, run the listener (live blocks)
+npm run listen:prod
 ```
 
-Spawn a console to interact with the various database models and API formulas:
+### Mainnet
+
+Same as testnet — Infisical injects the correct `config.mainnet.json` with mainnet RPC endpoints and chain ID.
+
+### Local Development (Docker)
 
 ```bash
-npm run console
+# Start all services with dev config (connects to local XION node)
+docker compose -f compose.dev.yml up
 ```
 
-### Testing transformations with a dump file
+The dev config in `config-dev.json` points to `localhost:26657` by default. Override by editing the config or setting `CONFIG_FILE`.
 
-To test transformations with a dump file:
+---
 
-1. Place `dump.trace.pipe` in the root of the project.
+## Architecture
 
-2. Create `config.dump-test.json`, making sure to set `rpc`, `bech32Prefix`, and
-   any `codeIds` you need to test:
+The indexer consists of three core processes:
 
-   ```bash
-   cp config.dump-test.json.example config.dump-test.json
-   ```
+1. **Tracer** — Scans historical blocks from genesis, extracts events, and computes derived state via formulas
+2. **Listener** — Subscribes to live blocks via Tendermint RPC and processes new events in real time
+3. **Workers** — Background job processors for computationally expensive tasks (both foreground and background modes)
 
-3. Add your `*.test.ts` test files to `src/test/dump`.
+**Data flow:**
+```
+XION Blockchain (RPC)
+  → Tracer/Listener (extract events)
+    → Transformers (normalize data)
+      → Database (TimescaleDB + PostgreSQL)
+        → Server (REST API on port 3420)
+          → Dev Dashboard / Consumers
+```
 
-4. Run:
+For detailed architecture documentation, see the [`docs/`](docs/) directory. Note: those docs are from upstream Argus and reference Juno-specific details — the architecture is the same, but chain-specific config differs for XION.
+
+---
+
+## Deployment
+
+### Docker Build
 
 ```bash
-npm run docker:test:dump
+docker build -t dao-dao-indexer .
 ```
 
-## Docker
+The Dockerfile uses `node:22-alpine` and builds the app in a multi-stage process.
 
-To build the Docker image, run:
+### Production (PM2 + Infisical)
 
 ```bash
-npm run docker:build
+# Install dependencies and build
+npm install && npm run build
+
+# Run migrations with Infisical-managed config
+npm run with-infisical -- npm run db:migrate:data
+
+# Start processes via PM2
+pm2 start ecosystem.config.js --only tracer,workers,workers-bg,renew-infisical-token
+pm2 save
 ```
 
-To tag and push to a container registry, run:
+The `ecosystem.config.js` manages five processes:
+
+| Process | Role |
+|---------|------|
+| `tracer` | Historical block indexing |
+| `listener` | Live block indexing |
+| `workers` | Foreground background jobs |
+| `workers-bg` | Background jobs |
+| `account-webhooks` | Deposit webhook delivery (Burnt-specific) |
+
+---
+
+## API
+
+The server exposes a REST API on port **3420**. For API documentation, see [`docs/api.md`](docs/api.md).
+
+Key endpoints include:
+- DAO queries (proposals, votes, members)
+- Treasury and staking data
+- Account deposit webhook registrations
+- Payment webhook processing
+
+---
+
+## Testing
 
 ```bash
-docker tag argus:latest your-registry/argus:latest
-docker push your-registry/argus:latest
+# Unit tests
+npm test
+
+# E2E tests (requires running XION test chain)
+npm run test:e2e
 ```
 
-## Documentation
+---
 
-To understand how this indexer works and why it exists, read through the
-[documentation](./docs/start.md).
+## Related Projects
 
-## Database utilities
+- [Argus (upstream)](https://github.com/noahsaso/argus) — Original DAO DAO indexer
+- [DAO DAO UI](https://github.com/DA0-DA0/dao-dao) — DAO DAO front end
+- [Burnt Dev Dashboard](https://github.com/burnt-labs/dao-dao-ui) — Burnt's dashboard consuming this indexer
+- [XION](https://github.com/burnt-labs/xion) — XION blockchain
 
-### Add read-only user in PostgreSQL
+---
 
-```sql
-REVOKE ALL ON DATABASE db FROM readonly_user;
--- revoke access from all databases
-SELECT format('REVOKE ALL ON DATABASE %I FROM readonly_user;', datname) FROM pg_database \gexec
--- grant connection access to all databases
-SELECT format('GRANT CONNECT, SELECT ON DATABASE %I TO readonly_user;', datname) FROM pg_database WHERE datname = 'accounts' OR datname LIKE '%_%net' \gexec
--- grant access to use SELECT on all tables
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;
--- grant access to list tables
-GRANT USAGE ON SCHEMA public TO readonly_user;
--- grant read access to future tables
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO readonly_user;
-```
+## License
 
-### Find the code IDs for a given Event key
-
-```sql
-SELECT DISTINCT ON("codeId") "codeId", "value" FROM "WasmStateEvents" INNER JOIN "Contracts" ON "Contracts"."address" = "WasmStateEvents"."contractAddress" WHERE "key" = '' ORDER BY "codeId" ASC;
-```
-
-Find by contract name (key is `contract_info`)
-
-```sql
-SELECT DISTINCT ON("codeId") "codeId", "value" FROM "WasmStateEvents" INNER JOIN "Contracts" ON "Contracts"."address" = "WasmStateEvents"."contractAddress" WHERE "key" = '99,111,110,116,114,97,99,116,95,105,110,102,111' AND value LIKE '%CONTRACT_NAME%' ORDER BY "codeId" ASC;
-```
-
-### Find the contracts with the most state events
-
-```sql
-WITH address_counts AS (
-  SELECT
-    "contractAddress",
-    COUNT(*) as row_count
-  FROM "WasmStateEvents"
-  GROUP BY "contractAddress"
-),
-total AS (
-  SELECT SUM(row_count) AS total_rows
-  FROM address_counts
-)
-SELECT * FROM address_counts
-JOIN total ON true
-ORDER BY row_count DESC
-LIMIT 200;
-```
-
-## Find all code IDs for a given contract type
-
-```sql
-SELECT DISTINCT c."codeId"
-FROM "Contracts" c
-JOIN "WasmStateEvents" w ON c."address" = w."contractAddress"
-WHERE w."key" = '99,111,110,116,114,97,99,116,95,105,110,102,111'
-AND w."value" LIKE '%"contract":"crates.io:contract_one%'
-```
-
-### Delete all events for contracts of a certain type except the info key
-
-```sql
-WITH bad_addresses AS (
-  SELECT DISTINCT "address"
-  FROM "Contracts"
-  WHERE "codeId" IN (
-      SELECT DISTINCT c."codeId"
-      FROM "Contracts" c
-      JOIN "WasmStateEvents" w ON c."address" = w."contractAddress"
-      WHERE w."key" = '99,111,110,116,114,97,99,116,95,105,110,102,111'
-      AND (
-        w."value" LIKE '%"contract":"crates.io:contract_one%'
-        OR w."value" LIKE '%"contract":"crates.io:contract_two%'
-        OR w."value" LIKE '%"contract":"crates.io:contract_three%'
-      )
-  )
-)
-DELETE FROM "WasmStateEvents"
-WHERE "contractAddress" IN (SELECT "address" FROM bad_addresses)
-AND "key" != '99,111,110,116,114,97,99,116,95,105,110,102,111';
-```
-
-```sql
-
-WITH bad_addresses AS (
-  SELECT DISTINCT "address"
-  FROM "Contracts"
-  WHERE "codeId" IN (
-      SELECT DISTINCT c."codeId"
-      FROM "Contracts" c
-      JOIN "WasmStateEvents" w ON c."address" = w."contractAddress"
-      WHERE w."key" = '99,111,110,116,114,97,99,116,95,105,110,102,111'
-      AND (
-        w."value" LIKE '%"contract":"crates.io:contract_one%'
-        OR w."value" LIKE '%"contract":"crates.io:contract_two%'
-        OR w."value" LIKE '%"contract":"crates.io:contract_three%'
-      )
-  )
-)
-DELETE FROM "WasmStateEventTransformations"
-WHERE "contractAddress" IN (SELECT "address" FROM bad_addresses)
-AND "name" != 'info';
-```
-
-### View all table sizes
-
-```sql
-SELECT table_name, pg_size_pretty(pg_relation_size(quote_ident(table_name))) AS data_size, pg_size_pretty(pg_indexes_size(quote_ident(table_name))) AS index_size, pg_size_pretty(pg_total_relation_size(quote_ident(table_name))) AS total_size, pg_total_relation_size(quote_ident(table_name)) AS total_bytes FROM information_schema.tables WHERE table_schema = 'public' ORDER BY total_bytes DESC;
-```
-
-### View all database sizes
-
-```sql
-SELECT datname AS database_name, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datname LIKE '%net' ORDER BY pg_database_size(datname) DESC;
-```
-
-## Attribution
-
-Credit to ekez for the initial idea and design of the state-based x/wasm
-indexer, and noah for the subsequent architecting, implementation, and
-optimization. Built for [DAO DAO](https://daodao.zone) and the CosmWasm
-ecosystem as a whole.
+[AGPL-3.0-only](LICENSE) — Same as upstream Argus.
