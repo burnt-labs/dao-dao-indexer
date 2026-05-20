@@ -154,6 +154,91 @@ const makeFormulaDoc = (
   ]
 }
 
+const contractStateDumpDoc: [string, OpenAPIV3_1.PathItemObject] = [
+  '/contract/{address}/state/recover',
+  {
+    post: {
+      tags: [FormulaType.Contract],
+      summary: 'Recover live contract state into the events pipeline',
+      operationId: 'contract_state_recovery',
+      parameters: [
+        {
+          name: 'address',
+          in: 'path',
+          description: 'CosmWasm contract address',
+          required: true,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'rpc',
+          in: 'query',
+          description: 'Configured RPC target to query',
+          required: false,
+          schema: {
+            type: 'string',
+            enum: ['remote', 'local'],
+            default: 'remote',
+          },
+        },
+        {
+          name: 'pageLimit',
+          in: 'query',
+          description: 'Maximum entries to request per RPC page',
+          required: false,
+          schema: { type: 'integer', minimum: 1, maximum: 5000, default: 1000 },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'live contract state recovery summary',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: [
+                  'chainId',
+                  'contractAddress',
+                  'rpc',
+                  'blockHeight',
+                  'blockTimeUnixMs',
+                  'count',
+                  'events',
+                  'transformations',
+                ],
+                properties: {
+                  chainId: { type: 'string' },
+                  contractAddress: { type: 'string' },
+                  rpc: { type: 'string', enum: ['remote', 'local'] },
+                  blockHeight: { type: 'string' },
+                  blockTimeUnixMs: { type: 'string' },
+                  count: {
+                    type: 'integer',
+                    description:
+                      'Number of live contract state entries recovered.',
+                  },
+                  events: {
+                    type: 'integer',
+                    description: 'Number of WasmStateEvent records upserted.',
+                  },
+                  transformations: {
+                    type: 'integer',
+                    description:
+                      'Number of transformations created or updated.',
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': { description: 'invalid address, rpc, or pageLimit' },
+        '404': { description: 'contract not found' },
+        '500': { description: 'internal recovery pipeline failure' },
+        '502': { description: 'RPC connection or query failed' },
+      },
+    },
+  },
+]
+
 const makeAggregatorDoc = (
   path: string,
   aggregator: Aggregator<any, any>
@@ -204,6 +289,7 @@ const makeAggregatorDoc = (
 }
 
 openapi.paths = {
+  [contractStateDumpDoc[0]]: contractStateDumpDoc[1],
   ...Object.fromEntries(
     Object.entries(flatten(contractFormulas)).map(
       ([path, formula]): [string, OpenAPIV3_1.PathItemObject] =>
