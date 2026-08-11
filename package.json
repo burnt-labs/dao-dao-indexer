@@ -101,7 +101,7 @@
     "tsup": "^8.0.2",
     "typescript": "^5.9.2",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.1.2",
+    "vitest": "^4.1.10",
     "vitest-websocket-mock": "^0.5.0"
   },
   "dependencies": {
