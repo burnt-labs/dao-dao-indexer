@@ -73,7 +73,7 @@
     "@types/koa-static": "^4.0.4",
     "@types/lodash.groupby": "^4.6.7",
     "@types/lodash.isequal": "^4.5.6",
-    "@types/node": "^18.11.10",
+    "@types/node": "^22.10.2",
     "@types/prettier": "^2.7.1",
     "@types/redis-info": "^3.0.1",
     "@types/semver": "^7.5.8",
@@ -101,7 +101,7 @@
     "tsup": "^8.0.2",
     "typescript": "^5.9.2",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.1.2",
+    "vitest": "^4.1.10",
     "vitest-websocket-mock": "^0.5.0"
   },
   "dependencies": {
