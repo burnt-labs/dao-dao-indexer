@@ -1,12 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 import WS from 'vitest-websocket-mock'
 
 import {
   BlockHeader,
   ChainWebSocketListener,
+  ConnectionEvent,
   EventType,
   NewBlockMessage,
   TxMessage,
+  TxResult,
 } from './ChainWebSocketListener'
 
 const newListener = (eventType: EventType | EventType[]) =>
@@ -15,7 +17,7 @@ const newListener = (eventType: EventType | EventType[]) =>
   })
 
 describe('ChainWebSocketListener', () => {
-  let onConnectionStateChange: ReturnType<typeof vi.fn>
+  let onConnectionStateChange: Mock<(event: ConnectionEvent) => void>
   let listener: ChainWebSocketListener
   let mockServer: WS
 
@@ -150,8 +152,8 @@ describe('ChainWebSocketListener', () => {
   })
 
   describe('message handling', () => {
-    let onNewBlock: ReturnType<typeof vi.fn>
-    let onTx: ReturnType<typeof vi.fn>
+    let onNewBlock: Mock<(block: BlockHeader) => void>
+    let onTx: Mock<(hash: string, tx: TxResult) => void>
 
     beforeEach(async () => {
       onNewBlock = vi.fn()
