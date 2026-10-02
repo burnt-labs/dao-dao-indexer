@@ -13,6 +13,7 @@ import {
   AccountDepositWebhookRegistration,
   AccountKey,
   AccountKeyCredit,
+  AccountWalletContract,
   AccountWebhook,
   AccountWebhookCodeIdSet,
   AccountWebhookEvent,
@@ -81,6 +82,7 @@ const getModelsForType = (type: DbType): SequelizeOptions['models'] =>
         AccountWebhookCodeIdSet,
         AccountWebhookEvent,
         AccountWebhookEventAttempt,
+        AccountWalletContract,
       ]
     : []
 
