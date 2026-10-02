@@ -1,0 +1,14 @@
+### Add Dossier
+POST http://localhost:3420/wallet-contracts
+x-api-key: dev
+Content-Type: application/json
+
+{
+  "chainId": "xion-testnet-2",
+  "walletAddress": "xion1pztj0rc67ntkd0xlzf5vcwseh4fyylkegz7z2ztuncpxtyn8c7fqajsqzk",
+  "dossierContractAddress": "xion1f9n9zxat4c4p0xwmkrjw8l2p8jhdunxwjn0rxucqfvyp9g089vfqjzttmp"
+}
+
+### List Dossiers (chainId required, optionally filter by walletAddress)
+GET http://localhost:3420/wallet-contracts?chainId=xion-testnet-2&walletAddress=xion1pztj0rc67ntkd0xlzf5vcwseh4fyylkegz7z2ztuncpxtyn8c7fqajsqzk
+x-api-key: dev
