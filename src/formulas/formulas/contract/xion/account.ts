@@ -1,17 +1,7 @@
 import type { Params } from '@burnt-labs/xion-types'
 
 import { ContractFormula } from '@/types'
-
-// Stored authenticator shape (on-chain representation, snake_case keys).
-// Not produced by ts-codegen since the contract query responses return Binary;
-// derived from the account contract's state serialization.
-type Authenticator =
-  | { secp256_k1: { pubkey: string } }
-  | { ed25519: { pubkey: string } }
-  | { eth_wallet: { address: string } }
-  | { jwt: { aud: string; sub: string } }
-  | { secp256_r1: { pubkey: string } }
-  | { passkey: { passkey: string; url: string } }
+import { XionAuthenticator } from '@/utils'
 
 const AccountStorageKeys = {
   AUTHENTICATORS: 'authenticators',
@@ -21,7 +11,7 @@ const TreasuryStorageKeys = {
   PARAMS: 'params',
 }
 
-export const authenticators: ContractFormula<Authenticator[]> = {
+export const authenticators: ContractFormula<XionAuthenticator[]> = {
   docs: {
     description: 'Get authenticator map for account',
   },
@@ -29,9 +19,10 @@ export const authenticators: ContractFormula<Authenticator[]> = {
     const { contractAddress, getMap } = env
 
     const authenticatorMap =
-      (await getMap<number, Authenticator>(
+      (await getMap<number, XionAuthenticator>(
         contractAddress,
-        AccountStorageKeys.AUTHENTICATORS
+        AccountStorageKeys.AUTHENTICATORS,
+        { keyType: 'number' }
       )) ?? {}
 
     return Object.values(authenticatorMap)
