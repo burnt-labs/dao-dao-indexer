@@ -1,4 +1,3 @@
-import { fromBech32 } from '@cosmjs/encoding'
 import Router from '@koa/router'
 import { DefaultContext } from 'koa'
 
@@ -6,6 +5,7 @@ import { AccountWalletContract } from '@/db'
 import { objectMatchesStructure } from '@/utils'
 
 import { ApiKeyAuthState } from './apiKeyAuth'
+import { canonicalizeAddress } from './walletContractUtils'
 
 type CreateWalletContractRequest = {
   chainId: string
@@ -18,20 +18,6 @@ type CreateWalletContractResponse =
   | {
       error: string
     }
-
-const BECH32_PREFIX = 'xion'
-
-const isValidAddress = (address: unknown): address is string => {
-  if (typeof address !== 'string') {
-    return false
-  }
-
-  try {
-    return fromBech32(address.trim()).prefix === BECH32_PREFIX
-  } catch {
-    return false
-  }
-}
 
 export const createWalletContract: Router.Middleware<
   ApiKeyAuthState,
@@ -50,17 +36,24 @@ export const createWalletContract: Router.Middleware<
 
   const body: CreateWalletContractRequest = ctx.request.body
 
-  // Validate chain ID and addresses.
+  // Validate chain ID and canonicalize addresses so the same address always
+  // maps to one stored value regardless of client casing.
+  const validStructure = objectMatchesStructure(body, {
+    chainId: {},
+    walletAddress: {},
+    dossierContractAddress: {},
+  })
+  const canonicalWalletAddress =
+    validStructure && canonicalizeAddress(body.walletAddress)
+  const canonicalDossierContractAddress =
+    validStructure && canonicalizeAddress(body.dossierContractAddress)
+
   if (
-    !objectMatchesStructure(body, {
-      chainId: {},
-      walletAddress: {},
-      dossierContractAddress: {},
-    }) ||
+    !validStructure ||
     typeof body.chainId !== 'string' ||
     !body.chainId.trim() ||
-    !isValidAddress(body.walletAddress) ||
-    !isValidAddress(body.dossierContractAddress)
+    !canonicalWalletAddress ||
+    !canonicalDossierContractAddress
   ) {
     ctx.status = 400
     ctx.body = {
@@ -70,8 +63,8 @@ export const createWalletContract: Router.Middleware<
   }
 
   const chainId = body.chainId.trim()
-  const walletAddress = body.walletAddress.trim()
-  const dossierContractAddress = body.dossierContractAddress.trim()
+  const walletAddress = canonicalWalletAddress
+  const dossierContractAddress = canonicalDossierContractAddress
 
   // Upsert so repeated calls from various apps are idempotent.
   const [walletContract, created] = await AccountWalletContract.findOrCreate({
