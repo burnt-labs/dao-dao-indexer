@@ -38,6 +38,16 @@ export const createWalletContract: Router.Middleware<
   DefaultContext,
   CreateWalletContractResponse
 > = async (ctx) => {
+  // The public test API key is rate-limit/credit exempt and publicly known, so
+  // it must not be able to persist data.
+  if (ctx.state.accountKey.isTest) {
+    ctx.status = 403
+    ctx.body = {
+      error: 'The test API key cannot create wallet contracts.',
+    }
+    return
+  }
+
   const body: CreateWalletContractRequest = ctx.request.body
 
   // Validate chain ID and addresses.
