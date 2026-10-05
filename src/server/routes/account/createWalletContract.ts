@@ -13,6 +13,11 @@ type CreateWalletContractRequest = {
   dossierContractAddress: string
 }
 
+// NOTE: A wallet-contract mapping is only an app's assertion. Bech32
+// validation does not prove the dossier contract exists on-chain nor that the
+// wallet deployed or owns it. Consumers must not treat these mappings as
+// proof of ownership.
+
 type CreateWalletContractResponse =
   | AccountWalletContract['apiJson']
   | {
@@ -65,6 +70,18 @@ export const createWalletContract: Router.Middleware<
   const chainId = body.chainId.trim()
   const walletAddress = canonicalWalletAddress
   const dossierContractAddress = canonicalDossierContractAddress
+
+  // chainId is STRING(255) with no other length bound, so reject oversized
+  // values here instead of failing at the database. The addresses cannot
+  // exceed their columns: canonicalization re-encodes via Bech32, which
+  // rejects anything over 90 characters.
+  if (chainId.length > 255) {
+    ctx.status = 400
+    ctx.body = {
+      error: 'chainId too long.',
+    }
+    return
+  }
 
   // Upsert so repeated calls from various apps are idempotent.
   const [walletContract, created] = await AccountWalletContract.findOrCreate({

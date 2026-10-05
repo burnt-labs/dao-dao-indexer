@@ -74,36 +74,32 @@ export const listWalletContracts: Router.Middleware<
     ...(walletAddress ? { walletAddress } : {}),
   }
 
-  // Compute each wallet's latest mapping ID in the database. `current` refers
-  // to each wallet's latest mapping across all dossiers, so this aggregation
-  // intentionally ignores the dossier contract address filter. Doing it here
-  // keeps the (unboundedly growing) history out of application memory when a
-  // dossier filter is applied below.
   const sequelize = AccountWalletContract.sequelize
   if (!sequelize) {
     throw new Error('Database connection not initialized.')
   }
 
-  const latestPerWallet = await AccountWalletContract.findAll({
-    attributes: [
-      'walletAddress',
-      [sequelize.fn('MAX', sequelize.col('id')), 'latestId'],
-    ],
-    where: baseWhere,
-    group: ['walletAddress'],
-    raw: true,
-  })
-  const latestIds = new Set(
-    (latestPerWallet as unknown as { latestId: number | string }[]).map(
-      ({ latestId }) => Number(latestId)
-    )
-  )
-
+  // Compute `current` in the same SQL snapshot as the returned records so a
+  // concurrent insert cannot make the flags inconsistent. The subquery uses
+  // the wallet's full account/chain history, ignoring the dossier filter.
   const walletContracts = await AccountWalletContract.findAll({
+    attributes: {
+      include: [
+        [
+          sequelize.literal(`"AccountWalletContract"."id" = (
+            SELECT MAX("latest"."id")
+            FROM "AccountWalletContracts" AS "latest"
+            WHERE "latest"."accountPublicKey" = "AccountWalletContract"."accountPublicKey"
+              AND "latest"."chainId" = "AccountWalletContract"."chainId"
+              AND "latest"."walletAddress" = "AccountWalletContract"."walletAddress"
+          )`),
+          'current',
+        ],
+      ],
+    },
     where: {
       ...baseWhere,
-      // Optional filter. Safe to apply in the query now that `current` was
-      // computed above.
+      // Optional filter, applied only to the returned records.
       ...(dossierContractAddress ? { dossierContractAddress } : {}),
     },
     order: [['id', 'DESC']],
@@ -113,7 +109,7 @@ export const listWalletContracts: Router.Middleware<
   ctx.body = {
     walletContracts: walletContracts.map((walletContract) => ({
       ...walletContract.apiJson,
-      current: latestIds.has(walletContract.id),
+      current: walletContract.getDataValue('current'),
     })),
   }
 }
