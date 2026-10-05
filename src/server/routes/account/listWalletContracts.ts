@@ -4,6 +4,7 @@ import { DefaultContext } from 'koa'
 import { AccountWalletContract, AccountWalletContractApiJson } from '@/db'
 
 import { ApiKeyAuthState } from './apiKeyAuth'
+import { canonicalizeAddress } from './walletContractUtils'
 
 type WalletContractApiJson = AccountWalletContractApiJson & {
   // Whether this is the most recently added mapping for its wallet address.
@@ -23,18 +24,26 @@ export const listWalletContracts: Router.Middleware<
   DefaultContext,
   ListWalletContractsResponse
 > = async (ctx) => {
-  // Normalize query parameters the same way POST trims body values so both
-  // endpoints match on identical stored values.
+  // Normalize query parameters the same way POST canonicalizes body values so
+  // both endpoints match on identical stored values.
   const chainId =
     typeof ctx.query.chainId === 'string' ? ctx.query.chainId.trim() : undefined
-  const walletAddress =
+
+  const rawWalletAddress =
     typeof ctx.query.walletAddress === 'string'
-      ? ctx.query.walletAddress.trim()
+      ? ctx.query.walletAddress
       : undefined
-  const dossierContractAddress =
+  const rawDossierContractAddress =
     typeof ctx.query.dossierContractAddress === 'string'
-      ? ctx.query.dossierContractAddress.trim()
+      ? ctx.query.dossierContractAddress
       : undefined
+
+  const walletAddress = rawWalletAddress
+    ? canonicalizeAddress(rawWalletAddress)
+    : undefined
+  const dossierContractAddress = rawDossierContractAddress
+    ? canonicalizeAddress(rawDossierContractAddress)
+    : undefined
 
   // Chain ID is required so mappings from different environments (e.g.
   // testnet vs. mainnet) never mix.
@@ -46,38 +55,65 @@ export const listWalletContracts: Router.Middleware<
     return
   }
 
-  // Do not apply the dossier contract address filter in the query: `current`
-  // refers to each wallet's latest mapping across all dossiers, so it must be
-  // computed before that filter is applied.
+  // Supplied addresses must be valid Bech32 addresses for this chain.
+  if (
+    (rawWalletAddress && !walletAddress) ||
+    (rawDossierContractAddress && !dossierContractAddress)
+  ) {
+    ctx.status = 400
+    ctx.body = {
+      error: 'Invalid walletAddress or dossierContractAddress.',
+    }
+    return
+  }
+
+  const baseWhere = {
+    accountPublicKey: ctx.state.account.publicKey,
+    chainId,
+    // Optional filter.
+    ...(walletAddress ? { walletAddress } : {}),
+  }
+
+  // Compute each wallet's latest mapping ID in the database. `current` refers
+  // to each wallet's latest mapping across all dossiers, so this aggregation
+  // intentionally ignores the dossier contract address filter. Doing it here
+  // keeps the (unboundedly growing) history out of application memory when a
+  // dossier filter is applied below.
+  const sequelize = AccountWalletContract.sequelize
+  if (!sequelize) {
+    throw new Error('Database connection not initialized.')
+  }
+
+  const latestPerWallet = await AccountWalletContract.findAll({
+    attributes: [
+      'walletAddress',
+      [sequelize.fn('MAX', sequelize.col('id')), 'latestId'],
+    ],
+    where: baseWhere,
+    group: ['walletAddress'],
+    raw: true,
+  })
+  const latestIds = new Set(
+    (latestPerWallet as unknown as { latestId: number | string }[]).map(
+      ({ latestId }) => Number(latestId)
+    )
+  )
+
   const walletContracts = await AccountWalletContract.findAll({
     where: {
-      accountPublicKey: ctx.state.account.publicKey,
-      chainId,
-      // Optional filter.
-      ...(walletAddress ? { walletAddress } : {}),
+      ...baseWhere,
+      // Optional filter. Safe to apply in the query now that `current` was
+      // computed above.
+      ...(dossierContractAddress ? { dossierContractAddress } : {}),
     },
-    // Newest first so the first row seen per wallet address is current.
     order: [['id', 'DESC']],
   })
 
-  const seenWalletAddresses = new Set<string>()
-
   ctx.status = 200
   ctx.body = {
-    walletContracts: walletContracts
-      .map((walletContract) => {
-        const current = !seenWalletAddresses.has(walletContract.walletAddress)
-        seenWalletAddresses.add(walletContract.walletAddress)
-
-        return {
-          ...walletContract.apiJson,
-          current,
-        }
-      })
-      .filter(
-        (walletContract) =>
-          !dossierContractAddress ||
-          walletContract.dossierContractAddress === dossierContractAddress
-      ),
+    walletContracts: walletContracts.map((walletContract) => ({
+      ...walletContract.apiJson,
+      current: latestIds.has(walletContract.id),
+    })),
   }
 }
