@@ -55,7 +55,7 @@ export const accountsByAuthenticator: GenericFormula<
       {
         name: 'aud',
         description:
-          'JWT only: audience to match together with `sub` when `authenticator` is omitted',
+          'JWT only: audience to match together with `sub` when `authenticator` is omitted (must not contain `*`)',
         required: false,
         schema: {
           type: 'string',
@@ -64,7 +64,7 @@ export const accountsByAuthenticator: GenericFormula<
       {
         name: 'sub',
         description:
-          'JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted',
+          'JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted (must not contain `*`)',
         required: false,
         schema: {
           type: 'string',
@@ -82,11 +82,11 @@ export const accountsByAuthenticator: GenericFormula<
       throw new Error('invalid type')
     }
 
-    // Request input must not widen the index scan: `%`, `_`, `\` and `*`
-    // (which getTransformationMatches turns into `%`) become the
-    // single-character wildcard `_`, so a pattern only matches names of the
-    // same shape. Exact matching happens via `whereName` or the re-check below.
-    const toLikePattern = (value: string) => value.replace(/[%_\\*]/g, '_')
+    // Request input must only match itself: `\`, `%` and `_` are escaped with
+    // Postgres' default LIKE escape (`\`). `*` cannot be escaped because
+    // getTransformationMatches turns every `*` into `%`, so it is rejected in
+    // `sub`/`aud`; exact lookups are additionally pinned with `=`.
+    const escapeLike = (value: string) => value.replace(/[\\%_]/g, '\\$&')
 
     let nameLike: string
     let whereName: WhereOperators | undefined
@@ -95,16 +95,20 @@ export const accountsByAuthenticator: GenericFormula<
       identity: XionAuthenticatorIdentity
     ) => boolean
     if (authenticator) {
-      nameLike = `hasAuthenticator:${type}:${toLikePattern(authenticator)}`
+      nameLike = `hasAuthenticator:${type}:${escapeLike(authenticator)}`
       whereName = { [Op.eq]: `hasAuthenticator:${type}:${authenticator}` }
       matches = (_, identity) =>
         identity.type === type && identity.authenticator === authenticator
     } else if (type === 'JWT' && sub) {
+      if (sub.includes('*') || aud?.includes('*')) {
+        throw new Error('sub and aud must not contain *')
+      }
+
       // Any audience unless `aud` is given; candidates are re-checked exactly
       // against the stored value below.
       nameLike = `hasAuthenticator:JWT:${
-        aud ? toLikePattern(aud) : '*'
-      }.${toLikePattern(sub)}`
+        aud ? escapeLike(aud) : '*'
+      }.${escapeLike(sub)}`
       matches = (value) =>
         'Jwt' in value &&
         value.Jwt.sub === sub &&
