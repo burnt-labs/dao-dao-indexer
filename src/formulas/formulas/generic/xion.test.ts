@@ -118,6 +118,20 @@ describe('generic xion/accountsByAuthenticator', () => {
     expect(env.getMap).not.toHaveBeenCalled()
   })
 
+  it('counts distinct accounts, not index rows, against the cap', async () => {
+    // One account can match through several JWT names (one per audience).
+    const candidates = Array.from({ length: 1001 }, (_, i) => ({
+      contractAddress: i % 2 ? 'xion1a' : 'xion1b',
+      codeId: 5,
+    }))
+
+    expect(
+      await accountsByAuthenticator.compute(
+        makeEnv({ type: 'JWT', sub: 'S' }, { candidates })
+      )
+    ).toEqual([ACCOUNT_A, ACCOUNT_B])
+  })
+
   it('re-checks candidates with at most 50 concurrent state reads', async () => {
     const candidates = Array.from({ length: 120 }, (_, i) => ({
       contractAddress: `xion1acct${i.toString().padStart(3, '0')}`,

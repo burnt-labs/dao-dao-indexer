@@ -135,24 +135,25 @@ export const accountsByAuthenticator: GenericFormula<
     }
 
     // The reverse index records every authenticator ever added, including
-    // ones since removed, so it only yields candidates.
-    const indexMatches =
-      (await getTransformationMatches(
-        undefined,
-        nameLike,
-        true,
-        codeIds,
-        whereName,
-        MAX_CANDIDATES + 1
-      )) ?? []
-    if (indexMatches.length > MAX_CANDIDATES) {
+    // ones since removed, so it only yields candidates. No SQL `limit`: it
+    // would apply before the code ID filter and per (name, contract) rather
+    // than per account, silently truncating results. Escaped input only
+    // matches the literal identity, so the row count is bounded by real data;
+    // the cap below bounds the per-account state reads.
+    const candidates = new Map<string, number>()
+    for (const { contractAddress, codeId } of (await getTransformationMatches(
+      undefined,
+      nameLike,
+      true,
+      codeIds,
+      whereName
+    )) ?? []) {
+      candidates.set(contractAddress, codeId)
+    }
+    if (candidates.size > MAX_CANDIDATES) {
       throw new Error(
         `more than ${MAX_CANDIDATES} accounts match; narrow the query`
       )
-    }
-    const candidates = new Map<string, number>()
-    for (const { contractAddress, codeId } of indexMatches) {
-      candidates.set(contractAddress, codeId)
     }
 
     const loadAccount = async ([address, codeId]: [string, number]): Promise<
