@@ -49,13 +49,19 @@ const makeEnv = (
   } as unknown as Env)
 
 describe('generic xion/accountsByAuthenticator', () => {
-  it('returns only accounts that currently hold the exact identity', async () => {
-    expect(
-      await accountsByAuthenticator.compute(
-        makeEnv({ type: 'JWT', authenticator: 'A.S' })
+  it.each([
+    [{ type: 'JWT', authenticator: 'A.S' }, [ACCOUNT_A]],
+    [{ type: 'EthWallet', authenticator: '0xab' }, [ACCOUNT_A]],
+    // Same identity string under a different type does not match.
+    [{ type: 'Secp256K1', authenticator: '0xab' }, []],
+  ])(
+    'returns only accounts that currently hold the exact identity %j',
+    async (args, expected) => {
+      expect(await accountsByAuthenticator.compute(makeEnv(args))).toEqual(
+        expected
       )
-    ).toEqual([ACCOUNT_A])
-  })
+    }
+  )
 
   it('matches JWT by sub across audiences, sorted by address', async () => {
     expect(

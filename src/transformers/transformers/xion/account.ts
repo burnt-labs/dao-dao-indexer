@@ -7,6 +7,12 @@ import {
 
 const AUTHENTICATORS_PREFIX = dbKeyForKeys('authenticators', '')
 
+// `name` is in btree indexes, whose entries Postgres caps at ~2.7KB; an
+// oversized name fails the whole transformation batch in `bulkCreate`.
+// Identities are issuer-controlled for JWT (`aud.sub`), so skip absurd ones.
+// Real identities are under 200 bytes.
+const MAX_NAME_BYTES = 1024
+
 /**
  * Reverse index of account authenticators: one `hasAuthenticator:TYPE:IDENTITY`
  * transformation per authenticator ever added to an account. Removals delete
@@ -21,9 +27,12 @@ export const hasAuthenticator: Transformer<true> = {
   },
   name: (event) => {
     const identity = getXionAuthenticatorIdentity(event.valueJson)
-    return (
-      identity && `hasAuthenticator:${identity.type}:${identity.authenticator}`
-    )
+    if (!identity) {
+      return
+    }
+
+    const name = `hasAuthenticator:${identity.type}:${identity.authenticator}`
+    return Buffer.byteLength(name) <= MAX_NAME_BYTES ? name : undefined
   },
   getValue: () => true,
 }
