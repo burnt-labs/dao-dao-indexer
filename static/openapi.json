@@ -14609,7 +14609,7 @@
         "tags": [
           "generic"
         ],
-        "summary": "Find XION account contracts that currently have the given authenticator",
+        "summary": "Find XION account contracts that currently have the given authenticator (fails if more than 1000 accounts match)",
         "operationId": "xion_accountsByAuthenticator_41f4293",
         "parameters": [
           {
@@ -14641,7 +14641,7 @@
           },
           {
             "name": "aud",
-            "description": "JWT only: audience to match together with `sub` when `authenticator` is omitted (must not contain `*`)",
+            "description": "JWT only: audience to match together with `sub` when `authenticator` is omitted",
             "required": false,
             "schema": {
               "type": "string"
@@ -14650,7 +14650,7 @@
           },
           {
             "name": "sub",
-            "description": "JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted (must not contain `*`)",
+            "description": "JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted; must not contain `*` unless `aud` is given",
             "required": false,
             "schema": {
               "type": "string"
