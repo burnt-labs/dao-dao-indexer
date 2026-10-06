@@ -1,3 +1,5 @@
+import { Op, WhereOperators } from 'sequelize'
+
 import { GenericFormula } from '@/types'
 import {
   XION_ACCOUNT_CODE_IDS_KEY,
@@ -79,31 +81,40 @@ export const accountsByAuthenticator: GenericFormula<
     if (!XION_AUTHENTICATOR_TYPES.includes(type as XionAuthenticatorType)) {
       throw new Error('invalid type')
     }
-    if (type !== 'JWT' && !authenticator) {
-      throw new Error('authenticator is required')
-    }
-    if (type === 'JWT' && !authenticator && !sub) {
-      throw new Error('authenticator or sub is required')
-    }
+
+    // Request input must not widen the index scan: `%`, `_`, `\` and `*`
+    // (which getTransformationMatches turns into `%`) become the
+    // single-character wildcard `_`, so a pattern only matches names of the
+    // same shape. Exact matching happens via `whereName` or the re-check below.
+    const toLikePattern = (value: string) => value.replace(/[%_\\*]/g, '_')
 
     let nameLike: string
+    let whereName: WhereOperators | undefined
     let matches: (
       value: XionAuthenticator,
       identity: XionAuthenticatorIdentity
     ) => boolean
     if (authenticator) {
-      nameLike = `hasAuthenticator:${type}:${authenticator}`
+      nameLike = `hasAuthenticator:${type}:${toLikePattern(authenticator)}`
+      whereName = { [Op.eq]: `hasAuthenticator:${type}:${authenticator}` }
       matches = (_, identity) =>
         identity.type === type && identity.authenticator === authenticator
-    } else {
-      // JWT matched by `sub` (and optionally `aud`). `*` is a LIKE wildcard,
-      // and any `%`/`_` in the input are too, so candidates are re-checked
-      // exactly against the stored value below.
-      nameLike = `hasAuthenticator:JWT:${aud ?? '*'}.${sub}`
+    } else if (type === 'JWT' && sub) {
+      // Any audience unless `aud` is given; candidates are re-checked exactly
+      // against the stored value below.
+      nameLike = `hasAuthenticator:JWT:${
+        aud ? toLikePattern(aud) : '*'
+      }.${toLikePattern(sub)}`
       matches = (value) =>
         'Jwt' in value &&
         value.Jwt.sub === sub &&
         (!aud || value.Jwt.aud === aud)
+    } else {
+      throw new Error(
+        type === 'JWT'
+          ? 'authenticator or sub is required'
+          : 'authenticator is required'
+      )
     }
 
     const codeIds = getCodeIdsForKeys(XION_ACCOUNT_CODE_IDS_KEY)
@@ -118,7 +129,8 @@ export const accountsByAuthenticator: GenericFormula<
       undefined,
       nameLike,
       true,
-      codeIds
+      codeIds,
+      whereName
     )) ?? []) {
       candidates.set(contractAddress, codeId)
     }

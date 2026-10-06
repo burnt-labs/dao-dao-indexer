@@ -54,4 +54,11 @@ describe('xion account hasAuthenticator transformer', () => {
       getName(makeEvent({ valueJson: { Future: { thing: 'x' } } }))
     ).toBeUndefined()
   })
+
+  it('skips identities too long to index', () => {
+    // Issuer-controlled JWT subject long enough to exceed the btree entry
+    // limit; indexing it would fail the whole transformation batch.
+    const valueJson = { Jwt: { aud: 'project-1', sub: 'u'.repeat(3000) } }
+    expect(getName(makeEvent({ valueJson }))).toBeUndefined()
+  })
 })

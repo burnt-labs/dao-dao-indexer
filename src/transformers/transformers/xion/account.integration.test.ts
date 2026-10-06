@@ -1,5 +1,5 @@
 import request from 'supertest'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   Block,
@@ -46,7 +46,7 @@ const authenticatorEvent = (
 })
 
 describe.runIf(integrationTests)(
-  'xion account authenticator index (tracer → transformer → formula)',
+  'xion account authenticator index (transformer → formula)',
   () => {
     let apiKey: string
 
@@ -196,9 +196,42 @@ describe.runIf(integrationTests)(
 
       await query({ type: 'JWT', sub: SUB }).expect(200).expect([other])
 
+      // An empty `aud` means any audience, like omitting it.
+      await query({ type: 'JWT', sub: SUB, aud: '' })
+        .expect(200)
+        .expect([other])
+
       await query({ block: '2:2', type: 'JWT', sub: SUB, aud: OTHER_AUD })
         .expect(200)
         .expect([other])
+    })
+
+    it('does not widen the index scan with LIKE wildcards in input', async () => {
+      const findAll = vi.spyOn(WasmStateEventTransformation, 'findAll')
+      try {
+        const wildcardQueries: Record<string, string>[] = [
+          { block: '2:2', type: 'JWT', authenticator: '%' },
+          { block: '2:2', type: 'JWT', authenticator: '*' },
+          { block: '2:2', type: 'JWT', authenticator: `${AUD}.%` },
+          { block: '2:2', type: 'EthWallet', authenticator: '0x%' },
+          { block: '2:2', type: 'JWT', sub: '%' },
+          { block: '2:2', type: 'JWT', sub: '*' },
+          { block: '2:2', type: 'JWT', sub: '%', aud: '%' },
+        ]
+        for (const params of wildcardQueries) {
+          await query(params).expect(200).expect([])
+        }
+
+        // No index rows were read for any of them, so no account was
+        // fetched and re-checked.
+        const rowsRead = await Promise.all(
+          findAll.mock.results.map(({ value }) => value)
+        )
+        expect(rowsRead.flat()).toEqual([])
+        expect(findAll).toHaveBeenCalled()
+      } finally {
+        findAll.mockRestore()
+      }
     })
 
     it('rejects a missing identity', async () => {

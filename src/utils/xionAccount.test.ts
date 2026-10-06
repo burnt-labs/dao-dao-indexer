@@ -88,6 +88,9 @@ describe('getXionAuthenticatorIdentity', () => {
     ['non-string field', { Jwt: { aud: 1 } }],
     ['missing JWT sub', { Jwt: { aud: 'a' } }],
     ['snake_case variant', { eth_wallet: { address: '0xab' } }],
+    ['non-object variant value', { Secp256K1: 'AudnmtW63QNxgu48' }],
+    ['empty pubkey', { Secp256K1: { pubkey: '' } }],
+    ['empty address', { EthWallet: { address: '' } }],
     ['Passkey blob not base64 JSON', { Passkey: { url: 'u', passkey: '!!' } }],
     [
       'Passkey credential without id',

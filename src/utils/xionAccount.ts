@@ -97,11 +97,11 @@ export const getXionAuthenticatorIdentity = (
     case 'Secp256K1':
     case 'Ed25519':
     case 'Secp256R1':
-      return typeof inner.pubkey === 'string'
+      return typeof inner.pubkey === 'string' && inner.pubkey
         ? { type: variant, authenticator: inner.pubkey }
         : undefined
     case 'EthWallet':
-      return typeof inner.address === 'string'
+      return typeof inner.address === 'string' && inner.address
         ? { type: 'EthWallet', authenticator: inner.address }
         : undefined
     case 'Jwt':
@@ -118,7 +118,7 @@ export const getXionAuthenticatorIdentity = (
         : undefined
     }
     case 'ZKEmail':
-      return typeof inner.email_salt === 'string'
+      return typeof inner.email_salt === 'string' && inner.email_salt
         ? { type: 'ZKEmail', authenticator: inner.email_salt }
         : undefined
     default:
