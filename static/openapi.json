@@ -14604,6 +14604,70 @@
         }
       }
     },
+    "/{chainId}/generic/_/xion/accountsByAuthenticator": {
+      "get": {
+        "tags": [
+          "generic"
+        ],
+        "summary": "Find XION account contracts that currently have the given authenticator (fails if more than 1000 accounts match)",
+        "operationId": "xion_accountsByAuthenticator_41f4293",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "description": "Authenticator type: Secp256K1, Ed25519, EthWallet, JWT, Secp256R1, Passkey, ZKEmail",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "authenticator",
+            "description": "Exact login identity: base64 pubkey (Secp256K1, Ed25519, Secp256R1), 0x address (EthWallet), base64 credential ID (Passkey), email salt (ZKEmail), or `aud.sub` (JWT)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "aud",
+            "description": "JWT only: audience to match together with `sub` when `authenticator` is omitted",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "sub",
+            "description": "JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted; must not contain `*` unless `aud` is given",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "missing required arguments"
+          }
+        }
+      }
+    },
     "/{chainId}/a/balance/overTime": {
       "get": {
         "tags": [
