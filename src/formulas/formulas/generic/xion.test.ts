@@ -25,6 +25,11 @@ const makeEnv = (
   args: Record<string, string>,
   {
     codeIds = [5],
+    candidates = [
+      { contractAddress: 'xion1b', codeId: 5 },
+      { contractAddress: 'xion1a', codeId: 5 },
+      { contractAddress: 'xion1a', codeId: 5 },
+    ],
     maps = {
       xion1a: {
         0: { Jwt: { aud: 'A', sub: 'S' } },
@@ -32,20 +37,19 @@ const makeEnv = (
       },
       xion1b: { 0: { Jwt: { aud: 'B', sub: 'S' } } },
     },
+    getMap = async (address: string) => maps[address],
   }: {
     codeIds?: number[]
+    candidates?: { contractAddress: string; codeId: number }[]
     maps?: Record<string, Record<number, unknown> | undefined>
+    getMap?: (address: string) => Promise<unknown>
   } = {}
 ): Env =>
   ({
     args,
     getCodeIdsForKeys: vi.fn(() => codeIds),
-    getTransformationMatches: vi.fn(async () => [
-      { contractAddress: 'xion1b', codeId: 5 },
-      { contractAddress: 'xion1a', codeId: 5 },
-      { contractAddress: 'xion1a', codeId: 5 },
-    ]),
-    getMap: vi.fn(async (address: string) => maps[address]),
+    getTransformationMatches: vi.fn(async () => candidates),
+    getMap: vi.fn(getMap),
   } as unknown as Env)
 
 describe('generic xion/accountsByAuthenticator', () => {
@@ -101,10 +105,51 @@ describe('generic xion/accountsByAuthenticator', () => {
     ).toEqual([])
   })
 
+  it('rejects lookups matching more than 1000 accounts', async () => {
+    const candidates = Array.from({ length: 1001 }, (_, i) => ({
+      contractAddress: `xion1acct${i}`,
+      codeId: 5,
+    }))
+    const env = makeEnv({ type: 'JWT', sub: 'S' }, { candidates })
+
+    await expect(accountsByAuthenticator.compute(env)).rejects.toThrow(
+      'more than 1000 accounts match'
+    )
+    expect(env.getMap).not.toHaveBeenCalled()
+  })
+
+  it('re-checks candidates with at most 50 concurrent state reads', async () => {
+    const candidates = Array.from({ length: 120 }, (_, i) => ({
+      contractAddress: `xion1acct${i.toString().padStart(3, '0')}`,
+      codeId: 5,
+    }))
+    let inFlight = 0
+    let maxInFlight = 0
+    const env = makeEnv(
+      { type: 'JWT', authenticator: 'A.S' },
+      {
+        candidates,
+        getMap: async () => {
+          maxInFlight = Math.max(maxInFlight, ++inFlight)
+          // Yield so every read in a batch starts before any finishes.
+          await Promise.resolve()
+          inFlight--
+          return { 0: { Jwt: { aud: 'A', sub: 'S' } } }
+        },
+      }
+    )
+
+    const accounts = await accountsByAuthenticator.compute(env)
+    expect(accounts.map(({ address }) => address)).toEqual(
+      candidates.map(({ contractAddress }) => contractAddress)
+    )
+    expect(maxInFlight).toBe(50)
+  })
+
   it.each([
     [{ type: 'Secp256K1' }, 'authenticator is required'],
     [{ type: 'JWT', aud: 'A' }, 'authenticator or sub is required'],
-    [{ type: 'JWT', sub: 'S', aud: 'A*' }, 'sub and aud must not contain *'],
+    [{ type: 'JWT', sub: 'S*' }, 'sub must not contain * unless aud is given'],
     [{ type: 'Nope', authenticator: 'x' }, 'invalid type'],
     [{ type: 'Jwt', authenticator: 'A.S' }, 'invalid type'],
     [{ authenticator: 'A.S' }, 'invalid type'],

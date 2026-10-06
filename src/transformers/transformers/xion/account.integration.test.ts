@@ -229,6 +229,7 @@ describe.runIf(integrationTests)(
           { block: '2:2', type: 'EthWallet', authenticator: '0x%' },
           { block: '2:2', type: 'JWT', sub: '%' },
           { block: '2:2', type: 'JWT', sub: '%', aud: '%' },
+          { block: '2:2', type: 'JWT', sub: SUB, aud: '*' },
           // Same length as every Stytch subject; as wildcards this would
           // match all of them.
           { block: '2:2', type: 'JWT', sub: '_'.repeat(SUB.length) },
@@ -267,10 +268,24 @@ describe.runIf(integrationTests)(
         .expect([meta])
     })
 
-    it('rejects a missing identity or * in sub/aud', async () => {
+    it('rejects range queries instead of returning results that miss changes', async () => {
+      for (const range of ['blocks=1:1..3:3', 'times=1..3']) {
+        await request(app.callback())
+          .get(
+            `/generic/_/xion/accountsByAuthenticator?type=JWT&sub=${SUB}&${range}`
+          )
+          .set('x-api-key', apiKey)
+          .expect(400)
+          .expect(
+            'cannot compute dynamic formula over a range (compute it for a specific block/time instead)'
+          )
+      }
+    })
+
+    it('rejects a missing identity or * in a sub-only lookup', async () => {
       await query({ type: 'Secp256K1' }).expect(400)
       await query({ type: 'JWT', sub: '*' }).expect(400)
-      await query({ type: 'JWT', sub: SUB, aud: '*' }).expect(400)
+      await query({ type: 'JWT', sub: '*', aud: AUD }).expect(200).expect([])
     })
   }
 )
