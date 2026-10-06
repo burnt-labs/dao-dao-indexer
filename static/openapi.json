@@ -14641,7 +14641,7 @@
           },
           {
             "name": "aud",
-            "description": "JWT only: audience to match together with `sub` when `authenticator` is omitted",
+            "description": "JWT only: audience to match together with `sub` when `authenticator` is omitted (must not contain `*`)",
             "required": false,
             "schema": {
               "type": "string"
@@ -14650,7 +14650,7 @@
           },
           {
             "name": "sub",
-            "description": "JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted",
+            "description": "JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted (must not contain `*`)",
             "required": false,
             "schema": {
               "type": "string"

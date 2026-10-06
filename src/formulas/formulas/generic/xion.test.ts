@@ -104,6 +104,7 @@ describe('generic xion/accountsByAuthenticator', () => {
   it.each([
     [{ type: 'Secp256K1' }, 'authenticator is required'],
     [{ type: 'JWT', aud: 'A' }, 'authenticator or sub is required'],
+    [{ type: 'JWT', sub: 'S', aud: 'A*' }, 'sub and aud must not contain *'],
     [{ type: 'Nope', authenticator: 'x' }, 'invalid type'],
     [{ type: 'Jwt', authenticator: 'A.S' }, 'invalid type'],
     [{ authenticator: 'A.S' }, 'invalid type'],
