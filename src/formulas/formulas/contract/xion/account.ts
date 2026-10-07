@@ -1,7 +1,11 @@
 import type { Params } from '@burnt-labs/xion-types'
 
 import { ContractFormula } from '@/types'
-import { XionAuthenticator } from '@/utils'
+import {
+  XionAuthenticator,
+  XionAuthenticatorType,
+  getXionAuthenticatorIdentity,
+} from '@/utils'
 
 const AccountStorageKeys = {
   AUTHENTICATORS: 'authenticators',
@@ -26,6 +30,36 @@ export const authenticators: ContractFormula<XionAuthenticator[]> = {
       )) ?? {}
 
     return Object.values(authenticatorMap)
+  },
+}
+
+export const authenticatorIdentities: ContractFormula<
+  {
+    index: number
+    type: XionAuthenticatorType
+    authenticator: string
+  }[]
+> = {
+  docs: {
+    description:
+      'Get the login identity of each authenticator on the account, sorted by index (authenticators that cannot be decoded are omitted)',
+  },
+  compute: async (env) => {
+    const { contractAddress, getMap } = env
+
+    const authenticatorMap =
+      (await getMap<number, XionAuthenticator>(
+        contractAddress,
+        AccountStorageKeys.AUTHENTICATORS,
+        { keyType: 'number' }
+      )) ?? {}
+
+    return Object.entries(authenticatorMap)
+      .flatMap(([index, value]) => {
+        const identity = getXionAuthenticatorIdentity(value)
+        return identity ? [{ index: Number(index), ...identity }] : []
+      })
+      .sort((a, b) => a.index - b.index)
   },
 }
 
