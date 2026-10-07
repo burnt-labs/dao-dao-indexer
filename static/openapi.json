@@ -12627,6 +12627,40 @@
         }
       }
     },
+    "/{chainId}/contract/{contractAddress}/xion/account/authenticatorIdentities": {
+      "get": {
+        "tags": [
+          "contract"
+        ],
+        "summary": "Get the login identity of each authenticator on the account, sorted by index (authenticators that cannot be decoded are omitted)",
+        "operationId": "xion_account_authenticatorIdentities_6e64d98",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractAddress",
+            "in": "path",
+            "description": "contract address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          }
+        }
+      }
+    },
     "/{chainId}/contract/{contractAddress}/xion/account/authenticators": {
       "get": {
         "tags": [
