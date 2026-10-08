@@ -1,9 +1,12 @@
 import Router from '@koa/router'
 import { koaBody } from 'koa-body'
 
+import { apiKeyAuth } from '../account/apiKeyAuth'
 import { createDepositWebhookRegistration } from '../account/createDepositWebhookRegistration'
+import { createWalletContract } from '../account/createWalletContract'
 import { deleteDepositWebhookRegistration } from '../account/deleteDepositWebhookRegistration'
 import { getDepositWebhookRegistration } from '../account/getDepositWebhookRegistration'
+import { listWalletContracts } from '../account/listWalletContracts'
 import { updateDepositWebhookRegistration } from '../account/updateDepositWebhookRegistration'
 import { loadAggregator } from './aggregator'
 import { loadComputer } from './computer'
@@ -38,6 +41,10 @@ export const setUpIndexerRouter = async (root: Router) => {
     '/deposit-webhook-registrations/:id',
     deleteDepositWebhookRegistration
   )
+
+  // Wallet-to-dossier contract mappings (also served by the accounts API).
+  indexerRouter.post('/wallet-contracts', apiKeyAuth, createWalletContract)
+  indexerRouter.get('/wallet-contracts', apiKeyAuth, listWalletContracts)
 
   // Aggregator routes (with "a" prefix to distinguish from formulas).
   const aggregator = await loadAggregator()
