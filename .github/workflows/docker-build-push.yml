@@ -81,3 +81,41 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+
+  notify-ops:
+    name: Notify ops repo of release
+    # Runs once per version tag, after the image is pushed. It is a separate
+    # job so a Trivy/SARIF failure in build-and-push cannot block it.
+    needs: build-and-push
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions: {}
+
+    steps:
+      - name: Send repository_dispatch to ops repo
+        env:
+          OPS_DISPATCH_TOKEN: ${{ secrets.OPS_DISPATCH_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "$OPS_DISPATCH_TOKEN" ]; then
+            echo "::warning::OPS_DISPATCH_TOKEN is not set; skipping ops repo notification."
+            exit 0
+          fi
+
+          payload=$(jq -nc --arg repo "$REPO" --arg tag "$TAG" \
+            '{event_type: "argus-release", client_payload: {repo: $repo, tag: $tag}}')
+
+          if ! curl -sS --fail-with-body --max-time 30 --retry 2 \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $OPS_DISPATCH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d "$payload" \
+            https://api.github.com/repos/noahsaso/intentional-design-ops/dispatches; then
+            echo  # the response body may lack a trailing newline
+            echo "::error::Failed to send argus-release dispatch for $TAG to noahsaso/intentional-design-ops."
+            exit 1
+          fi
+
+          echo "Sent argus-release dispatch for $REPO@$TAG to noahsaso/intentional-design-ops."
