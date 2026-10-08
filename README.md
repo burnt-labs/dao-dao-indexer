@@ -342,7 +342,7 @@ The indexer is deployed as a Docker container image published to GitHub Containe
    - Tags: semver (`0.4.4`, `0.4`), short SHA, and `latest`
    - Runs a Trivy vulnerability scan and uploads results to GitHub Security
 
-3. The production server pulls the new image and restarts. This is currently a manual step — contact @filament for access.
+3. After the image is pushed, the workflow's `notify-release` job calls the ops team's release webhook (secrets `FICUS_RELEASE_WEBHOOK_URL` / `FICUS_RELEASE_WEBHOOK_TOKEN`), which starts the production deploy automatically.
 
 ### CI
 

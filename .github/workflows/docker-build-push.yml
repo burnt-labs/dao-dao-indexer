@@ -81,3 +81,43 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+
+  notify-release:
+    name: Notify release webhook
+    # Runs once per version tag, after the image is pushed. It is a separate
+    # job so a Trivy/SARIF failure in build-and-push cannot block it.
+    needs: build-and-push
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions: {}
+
+    steps:
+      - name: Call release webhook
+        env:
+          FICUS_RELEASE_WEBHOOK_URL: ${{ secrets.FICUS_RELEASE_WEBHOOK_URL }}
+          FICUS_RELEASE_WEBHOOK_TOKEN: ${{ secrets.FICUS_RELEASE_WEBHOOK_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "$FICUS_RELEASE_WEBHOOK_URL" ] || [ -z "$FICUS_RELEASE_WEBHOOK_TOKEN" ]; then
+            echo "::warning::FICUS_RELEASE_WEBHOOK_URL or FICUS_RELEASE_WEBHOOK_TOKEN is not set; skipping release webhook."
+            exit 0
+          fi
+
+          payload=$(jq -nc --arg repo "$REPO" --arg tag "$TAG" \
+            '{context: {event: "argus-release", repo: $repo, tag: $tag}}')
+
+          # The token goes through a curl config on stdin so it never appears in argv.
+          if ! printf 'header = "Authorization: Bearer %s"\n' "$FICUS_RELEASE_WEBHOOK_TOKEN" | \
+            curl -sS --fail-with-body --max-time 30 --retry 2 \
+              -X POST "$FICUS_RELEASE_WEBHOOK_URL" \
+              --config - \
+              -H "Content-Type: application/json" \
+              -d "$payload"; then
+            echo  # the response body may lack a trailing newline
+            echo "::error::Release webhook call failed for $REPO@$TAG."
+            exit 1
+          fi
+
+          echo
+          echo "Release webhook triggered for $REPO@$TAG."
