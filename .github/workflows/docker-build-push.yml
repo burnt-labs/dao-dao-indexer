@@ -82,8 +82,8 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  notify-ops:
-    name: Notify ops repo of release
+  notify-release:
+    name: Notify release webhook
     # Runs once per version tag, after the image is pushed. It is a separate
     # job so a Trivy/SARIF failure in build-and-push cannot block it.
     needs: build-and-push
@@ -92,30 +92,32 @@ jobs:
     permissions: {}
 
     steps:
-      - name: Send repository_dispatch to ops repo
+      - name: Call release webhook
         env:
-          OPS_DISPATCH_TOKEN: ${{ secrets.OPS_DISPATCH_TOKEN }}
+          FICUS_RELEASE_WEBHOOK_URL: ${{ secrets.FICUS_RELEASE_WEBHOOK_URL }}
+          FICUS_RELEASE_WEBHOOK_TOKEN: ${{ secrets.FICUS_RELEASE_WEBHOOK_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          if [ -z "$OPS_DISPATCH_TOKEN" ]; then
-            echo "::warning::OPS_DISPATCH_TOKEN is not set; skipping ops repo notification."
+          if [ -z "$FICUS_RELEASE_WEBHOOK_URL" ] || [ -z "$FICUS_RELEASE_WEBHOOK_TOKEN" ]; then
+            echo "::warning::FICUS_RELEASE_WEBHOOK_URL or FICUS_RELEASE_WEBHOOK_TOKEN is not set; skipping release webhook."
             exit 0
           fi
 
           payload=$(jq -nc --arg repo "$REPO" --arg tag "$TAG" \
-            '{event_type: "argus-release", client_payload: {repo: $repo, tag: $tag}}')
+            '{context: {event: "argus-release", repo: $repo, tag: $tag}}')
 
-          if ! curl -sS --fail-with-body --max-time 30 --retry 2 \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $OPS_DISPATCH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            -d "$payload" \
-            https://api.github.com/repos/noahsaso/intentional-design-ops/dispatches; then
+          # The token goes through a curl config on stdin so it never appears in argv.
+          if ! printf 'header = "Authorization: Bearer %s"\n' "$FICUS_RELEASE_WEBHOOK_TOKEN" | \
+            curl -sS --fail-with-body --max-time 30 --retry 2 \
+              -X POST "$FICUS_RELEASE_WEBHOOK_URL" \
+              --config - \
+              -H "Content-Type: application/json" \
+              -d "$payload"; then
             echo  # the response body may lack a trailing newline
-            echo "::error::Failed to send argus-release dispatch for $TAG to noahsaso/intentional-design-ops."
+            echo "::error::Release webhook call failed for $REPO@$TAG."
             exit 1
           fi
 
-          echo "Sent argus-release dispatch for $REPO@$TAG to noahsaso/intentional-design-ops."
+          echo
+          echo "Release webhook triggered for $REPO@$TAG."
