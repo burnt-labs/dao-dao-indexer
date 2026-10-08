@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   Block,
@@ -219,6 +219,78 @@ describe.runIf(integrationTests)('contract state import', () => {
       reverse: true,
       problems: [],
     })
+  })
+
+  it('re-transforms every event of every contract across pages', async () => {
+    const base = makeRecord()
+    const addresses = ['xion1first', 'xion1second']
+    for (const address of addresses) {
+      await importRecord(
+        makeRecord({
+          address,
+          snapshots: [
+            base.snapshots[0],
+            {
+              ...base.snapshots[1],
+              entries: [
+                base.snapshots[1].entries[0],
+                {
+                  key: CONTRACT_INFO_KEY,
+                  value: b64({ contract: 'account', version: '0.2.0' }),
+                },
+              ],
+            },
+          ],
+        }),
+        false
+      )
+    }
+    // Three events per contract: both keys at 100, contract_info at 200.
+    expect(await WasmStateEvent.count()).toBe(6)
+
+    const findAll = vi.spyOn(WasmStateEvent, 'findAll')
+    try {
+      const all = await transformContracts(addresses)
+      expect(findAll).toHaveBeenCalledTimes(2)
+      // One contract per query, so the contractAddress index serves it.
+      expect(
+        findAll.mock.calls.map(
+          ([options]) =>
+            (options?.where as { contractAddress?: unknown }).contractAddress
+        )
+      ).toEqual(addresses)
+
+      // A batch of 2 pages each contract as 2 + 1, with no trailing empty
+      // query, and upserts the same transformations as a single page.
+      findAll.mockClear()
+      expect(await transformContracts(addresses, 2)).toBe(all)
+      expect(findAll).toHaveBeenCalledTimes(4)
+
+      findAll.mockClear()
+      expect(await transformContracts(addresses, 1)).toBe(all)
+      expect(findAll).toHaveBeenCalledTimes(8)
+    } finally {
+      findAll.mockRestore()
+    }
+
+    const transformations = await WasmStateEventTransformation.findAll({
+      where: { name: 'info' },
+      order: [
+        ['contractAddress', 'ASC'],
+        ['blockHeight', 'ASC'],
+      ],
+    })
+    expect(
+      transformations.map(({ contractAddress, blockHeight }) => [
+        contractAddress,
+        blockHeight,
+      ])
+    ).toEqual([
+      ['xion1first', '100'],
+      ['xion1first', '200'],
+      ['xion1second', '100'],
+      ['xion1second', '200'],
+    ])
   })
 
   it('leaves an existing contract row untouched', async () => {

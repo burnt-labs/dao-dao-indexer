@@ -7,6 +7,8 @@
 import { createHash } from 'crypto'
 import { readFile } from 'fs/promises'
 
+import { Op } from 'sequelize'
+
 import { Contract, WasmStateEvent } from '@/db'
 import { compute, getTypedFormula } from '@/formulas'
 import { transformParsedStateEvents } from '@/transformers'
@@ -264,36 +266,53 @@ export const importRecord = async (
 /**
  * Re-transform every state event of the given contracts, as the
  * transformations queue does for `npm run transform -- -a <addresses>`.
+ *
+ * One contract at a time, so each query is served by the `(contractAddress,
+ * key, blockHeight)` index instead of a scan and sort of the whole table.
+ * A transformation only reads earlier transformations of the same contract,
+ * so block height order within each contract is all that is needed. Pages are
+ * keyset-paginated on `(blockHeight, key)`, unique per contract.
  */
 export const transformContracts = async (
   addresses: string[],
   batchSize = 5000
 ) => {
   let transformed = 0
-  for (let i = 0; i < addresses.length; i += 100) {
-    const batch = addresses.slice(i, i + 100)
-    let offset = 0
+  for (const contractAddress of addresses) {
+    let after: { blockHeight: string; key: string } | undefined
     for (;;) {
       const events = await WasmStateEvent.findAll({
-        where: { contractAddress: batch },
+        where: {
+          contractAddress,
+          ...(after && {
+            [Op.or]: [
+              { blockHeight: { [Op.gt]: after.blockHeight } },
+              {
+                blockHeight: after.blockHeight,
+                key: { [Op.gt]: after.key },
+              },
+            ],
+          }),
+        },
         include: { model: Contract, required: true },
         order: [
           ['blockHeight', 'ASC'],
-          ['contractAddress', 'ASC'],
           ['key', 'ASC'],
         ],
         limit: batchSize,
-        offset,
       })
-      if (!events.length) {
+      if (events.length) {
+        transformed += (
+          await transformParsedStateEvents(
+            events.map((event) => event.asParsedEvent)
+          )
+        ).length
+        const last = events[events.length - 1]
+        after = { blockHeight: last.blockHeight, key: last.key }
+      }
+      if (events.length < batchSize) {
         break
       }
-      transformed += (
-        await transformParsedStateEvents(
-          events.map((event) => event.asParsedEvent)
-        )
-      ).length
-      offset += events.length
     }
   }
   return transformed
