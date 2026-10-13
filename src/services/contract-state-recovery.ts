@@ -47,8 +47,25 @@ const bytesToUtf8 = (value: Uint8Array): string => {
   }
 }
 
+// Postgres `jsonb` does not keep object key order (it sorts keys by length,
+// then bytes), so `valueJson` read back from the DB must be compared without
+// regard to key order.
+const sortKeys = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(sortKeys)
+    : value && typeof value === 'object'
+    ? Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((key) => [
+            key,
+            sortKeys((value as Record<string, unknown>)[key]),
+          ])
+      )
+    : value
+
 const isJsonEqual = (a: unknown, b: unknown): boolean =>
-  JSON.stringify(a) === JSON.stringify(b)
+  JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b))
 
 const isUnchangedLiveState = (
   recoveredEvent: ParsedWasmStateEvent,

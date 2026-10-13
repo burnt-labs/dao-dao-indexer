@@ -155,6 +155,32 @@ describe('recoverContractState', () => {
     expect(result).toEqual({ count: 1, events: 0, transformations: 0 })
   })
 
+  it('skips recovered key whose stored valueJson has jsonb key order', async () => {
+    const saveEvents = vi.fn(async (events) => events)
+
+    const result = await recoverContractState({
+      address: 'xion1account',
+      codeId: 1,
+      blockHeight: '123',
+      blockTimeUnixMs: '456000',
+      pageLimit: 1000,
+      fetchPage: makeFetchPage('{"contract":"account","version":"0.1.0"}'),
+      getLatestEvent: vi.fn().mockResolvedValue({
+        value: '{"contract":"account","version":"0.1.0"}',
+        // jsonb returns shorter keys first.
+        valueJson: { version: '0.1.0', contract: 'account' },
+        delete: false,
+      }),
+      ensureContract: vi.fn(),
+      saveEvents,
+      transformEvents: vi.fn(async () => []) as any,
+      updateState: vi.fn(),
+    })
+
+    expect(saveEvents).not.toHaveBeenCalled()
+    expect(result).toEqual({ count: 1, events: 0, transformations: 0 })
+  })
+
   it('saves recovered key whose latest event has a different value', async () => {
     const saveEvents = vi.fn(async (events) => events)
     const transformEvents = vi.fn(async () => [])
