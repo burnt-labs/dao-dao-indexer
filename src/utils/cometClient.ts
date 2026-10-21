@@ -19,9 +19,13 @@ import {
  * base64-decodes event attributes and fails every `block_results` call with
  * "Invalid string. Length must be a multiple of 4".
  *
- * Here 0.34 and 0.37 keep their adaptors, and 0.38 and newer use the 0.38
- * adaptor, which also reads the CometBFT v0.40 responses. Unparseable versions
- * keep CosmJS's 0.34 fallback.
+ * Here 0.34 and 0.37 keep their adaptors, and 0.38 and later 0.x versions use
+ * the 0.38 adaptor, which also reads the CometBFT v0.40 responses. CometBFT
+ * 1.x is not one of them: it sends validator updates as
+ * `pub_key_type`/`pub_key_bytes`, which the 0.38 adaptor cannot decode, and
+ * needs the `Comet1Client` that CosmJS added in 0.37. Until the indexer moves
+ * to that CosmJS, 1.x and unparseable versions keep CosmJS's 0.34 fallback, as
+ * before.
  */
 export const connectCometClient = async (
   endpoint: string | HttpEndpoint
@@ -41,7 +45,7 @@ export const connectCometClient = async (
 
   tm37Client.disconnect()
 
-  if (match && (major > 0 || minor >= 38)) {
+  if (match && major === 0 && minor >= 38) {
     return Comet38Client.connect(endpoint)
   }
 

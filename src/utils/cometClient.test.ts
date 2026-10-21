@@ -59,9 +59,10 @@ describe('connectCometClient', () => {
     ['0.38.26', Comet38Client],
     // CometBFT v0.40 (xion v32)
     ['0.39.0', Comet38Client],
-    ['1.0.0', Comet38Client],
     ['v0.38.19', Comet38Client],
-    // Unparseable: keep CosmJS's 0.34 fallback.
+    // CometBFT 1.x (needs CosmJS's Comet1Client, which 0.32 lacks) and
+    // unparseable versions keep CosmJS's 0.34 fallback.
+    ['1.0.0', Tendermint34Client],
     ['unknown', Tendermint34Client],
   ])('uses the right adaptor for version %s', async (version, adaptor) => {
     stubRpc(version)
