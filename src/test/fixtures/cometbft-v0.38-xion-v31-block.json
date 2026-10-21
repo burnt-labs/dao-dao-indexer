@@ -1,0 +1,1179 @@
+{
+  "_source": "xion-testnet-2 (xiond v31, CometBFT 0.38.26), height 18975581: JSON-RPC results of status, block and block_results",
+  "status": {
+    "node_info": {
+      "protocol_version": {
+        "p2p": "8",
+        "block": "11",
+        "app": "0"
+      },
+      "id": "a386af218bd4e5d0a5f2dcfbcc1051eff63d059f",
+      "listen_addr": "65.109.30.26:55656",
+      "network": "xion-testnet-2",
+      "version": "0.38.26",
+      "channels": "40202122233038606100",
+      "moniker": "itrocket_rpc",
+      "other": {
+        "tx_index": "on",
+        "rpc_address": "tcp://0.0.0.0:55657"
+      }
+    },
+    "sync_info": {
+      "latest_block_hash": "1A96923CDE36EE630B8C4B6D91941CE3324640DB3E794EB75D0914A90A4A635B",
+      "latest_app_hash": "1D6DC10A7E84837DE1F590FA9A19C406C2789776B1B59B29BFCD98451E30EE0F",
+      "latest_block_height": "18976811",
+      "latest_block_time": "2026-10-21T15:46:43.51663633Z",
+      "earliest_block_hash": "E9A6C84C80E45DE29C9AED4EA444B4AA39EEAF340A25EEA51E523ECFF877F4A8",
+      "earliest_app_hash": "FDF32F9687792E35E7708A4430330D60F070D8EE8E8A388B2DF62CDF65C8E763",
+      "earliest_block_height": "16560277",
+      "earliest_block_time": "2026-07-05T16:40:41.137258096Z",
+      "catching_up": false
+    },
+    "validator_info": {
+      "address": "928C7878A63764A5835FD690E61C43B7413CCEDA",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "CLUiLxsG79o9PbSA3bIWR0ZpvFErJj+XCLVuR+21tvs="
+      },
+      "voting_power": "0"
+    }
+  },
+  "block": {
+    "block_id": {
+      "hash": "997E3E1FBFF2C423EF0AE72F8AED33B8D82B87FFA8C9C9813B368EF9EE33F55A",
+      "parts": {
+        "total": 1,
+        "hash": "E944994013578457FF426D91D12F90394C6FD3306FFA8D4876D0664F7FA0E87C"
+      }
+    },
+    "block": {
+      "header": {
+        "version": {
+          "block": "11"
+        },
+        "chain_id": "xion-testnet-2",
+        "height": "18975581",
+        "time": "2026-10-21T14:24:06.547143289Z",
+        "last_block_id": {
+          "hash": "047847D338505CB62EF2E8DAB75DB3A88EB9BCFAD213341AEBC56B09FB5E13C5",
+          "parts": {
+            "total": 1,
+            "hash": "8080710CF0CFC4D5298C7E43FE89CE645205AFB739D3B765E33C00670C7CC9F3"
+          }
+        },
+        "last_commit_hash": "BD843E83C80710E9C3BBE128E1DD7C43A02C9FE7915C7F4F436D83C735C35135",
+        "data_hash": "BE7950F2EAC9A5906D0DE65E36729B3DDA61FB980EE7876D2B11ECB4331248D8",
+        "validators_hash": "7CB48244F3A254D222B5E497290AA706A8E644BC4F78C3B30981ECC75382529F",
+        "next_validators_hash": "7CB48244F3A254D222B5E497290AA706A8E644BC4F78C3B30981ECC75382529F",
+        "consensus_hash": "048091BC7DDC283F77BFBF91D73C44DA58C3DF8A9CBC867405D8B7F3DAADA22F",
+        "app_hash": "8F4B228865D064079144FEAEC893438FB53B46503D75FF76C58B675C7532FDED",
+        "last_results_hash": "AA1B1933A7A2CDC054FB5EB0B53001E9640080CA6E02F0F08DAFD98A34C6C891",
+        "evidence_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "proposer_address": "2A907DB4AB3640790543442A8988CAE5D9B2BE33"
+      },
+      "data": {
+        "txs": [
+          "CuIGCvEBCh4vY29zbW9zLmF1dGh6LnYxYmV0YTEuTXNnR3JhbnQSzgEKP3hpb24xZmhheGR2a3dyZ3prZWQ3cmRod3NycmtsNnlweWNhejRlMjI1dzdmZDg4N3B3bjl2cHBqcWV2ajhmbhIreGlvbjE0MjB0Y2V5cnV4M2Zndm43ZmNuM3N3Zm10MmZnNjlmbjA2ZWE5ahpeClQKKi9jb3Ntb3MuYXV0aHoudjFiZXRhMS5HZW5lcmljQXV0aG9yaXphdGlvbhImCiQvY29zbXdhc20ud2FzbS52MS5Nc2dFeGVjdXRlQ29udHJhY3QSBgiZxsjaBgr2AQoeL2Nvc21vcy5hdXRoei52MWJldGExLk1zZ0dyYW50EtMBCj94aW9uMWZoYXhkdmt3cmd6a2VkN3JkaHdzcnJrbDZ5cHljYXo0ZTIyNXc3ZmQ4ODdwd245dnBwanFldmo4Zm4SK3hpb24xNDIwdGNleXJ1eDNmZ3ZuN2ZjbjNzd2ZtdDJmZzY5Zm4wNmVhOWoaYwpZCiovY29zbW9zLmF1dGh6LnYxYmV0YTEuR2VuZXJpY0F1dGhvcml6YXRpb24SKwopL2Nvc213YXNtLndhc20udjEuTXNnSW5zdGFudGlhdGVDb250cmFjdDISBgiZxsjaBgrUAgokL2Nvc213YXNtLndhc20udjEuTXNnRXhlY3V0ZUNvbnRyYWN0EqsCCj94aW9uMWZoYXhkdmt3cmd6a2VkN3JkaHdzcnJrbDZ5cHljYXo0ZTIyNXc3ZmQ4ODdwd245dnBwanFldmo4Zm4SP3hpb24xcWV5Y24ycmR5NnFnOGNrY3VjMHQ2cnEzOHUyZmtlbXBsejkzdnE4MGh5Y3QzMzY1ZTBuc3J3cmYyMhqmAXsiZGVwbG95X2ZlZV9ncmFudCI6eyJhdXRoel9ncmFudGVyIjoieGlvbjFmaGF4ZHZrd3JnemtlZDdyZGh3c3Jya2w2eXB5Y2F6NGUyMjV3N2ZkODg3cHduOXZwcGpxZXZqOGZuIiwiYXV0aHpfZ3JhbnRlZSI6Inhpb24xNDIwdGNleXJ1eDNmZ3ZuN2ZjbjNzd2ZtdDJmZzY5Zm4wNmVhOWoifX0SHENyZWF0ZSBncmFudHMgZm9yIGFic3RyYXhpb24SjgEKSwpDCh0vYWJzdHJhY3RhY2NvdW50LnYxLk5pbFB1YktleRIiCiBN+mayzhoFbLfDbd0Bjt/RAkx0VcqVR3ktOfwXTKwIZBIECgIIARI/CgwKBXV4aW9uEgM0MDQQkNcTIit4aW9uMXhycXoyd3B0NHJ3OHJ0ZHZyYzRuNHluNWg1NGptMG5uNGV2bjJ4GkIADJqWMA9HleFrOSGSW5JOgFbH5Q06xU28Z2v+tNyECKczrnwwZWTMRp7u/fOKPk9R2BW33Vl9c50Ly0RU4gdxzxw="
+        ]
+      },
+      "evidence": {
+        "evidence": []
+      },
+      "last_commit": {
+        "height": "18975580",
+        "round": 1,
+        "block_id": {
+          "hash": "047847D338505CB62EF2E8DAB75DB3A88EB9BCFAD213341AEBC56B09FB5E13C5",
+          "parts": {
+            "total": 1,
+            "hash": "8080710CF0CFC4D5298C7E43FE89CE645205AFB739D3B765E33C00670C7CC9F3"
+          }
+        },
+        "signatures": [
+          {
+            "block_id_flag": 2,
+            "validator_address": "74797FF184F77627ADCCB72425D55ADCEF9953A8",
+            "timestamp": "2026-10-21T14:24:06.523040745Z",
+            "signature": "7fot8y+pamtOsXdBsKcaEIIDXT9vbFS4WKFspB4uftDfgTuvZtCOibwdoZHpxFbYOad1joz0uPC1p3sDXBfnAg=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "2B8353CA6A2605705FFFC6AC44BE53077D8C1A69",
+            "timestamp": "2026-10-21T14:24:06.557287642Z",
+            "signature": "qBz1zYqudTyRyi8Dz/kuvNryq5Y0lgLaYp8/PwWaI67nzEp+g112sMTsyH4oKQzu/GXqLSfbWG9SFrqUmWlKCg=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "380860F5E03884B0F73225828311A889C6A7670B",
+            "timestamp": "2026-10-21T14:24:06.676566794Z",
+            "signature": "EGeuLFdVstCvWfZ+tqERUWyVsaslRdbia8ez8zf/CfAU07Y8ceLXs4VWZi+O4Ln5qypViL5n0phlI2vJHjSIBQ=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "9634E3E345FE2328B73DA213F57847A085FCAE85",
+            "timestamp": "2026-10-21T14:24:06.539867574Z",
+            "signature": "Mp/3WCSePA95iRQeNUAK/VX4S0krg36WjxHogNHmbMyt2JQECAcbW4LvyIEs5thdbBJ5ousXaUwgbcN2rj/jAw=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "88D48841671C0EC19C511A8DBFED5A038D3F7925",
+            "timestamp": "2026-10-21T14:24:06.578857733Z",
+            "signature": "MU3xVrlNWaveeP3ZyLpa2gc5HBwEsNKsaKr4oHJErWFvVHjxQWH4V42IZAtwxni83vefhPgJJ9fQu7AxIBjNCw=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "2A907DB4AB3640790543442A8988CAE5D9B2BE33",
+            "timestamp": "2026-10-21T14:24:06.547143289Z",
+            "signature": "SdlvPHaS7m9div7JlmrHESK1wmDT8hZ3KL6glSxRGHo3UMwKtXbcEapSfKXLvU3deORIF9++uvvWDEzlJ1JABA=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "1DE0FBCFAB4C6939328E1701D88E04D96EC7DDC7",
+            "timestamp": "2026-10-21T14:24:06.532854003Z",
+            "signature": "dQ7gYRtTrfWhDG6PK2UdHJ2eJbCAsFLnYJwkRXM5HBEe6idJU45/9MIUNvAtMDZnJnXHw8zfzDKsKVyPfn2/Dg=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "6ACC9FDBB1B9DD8CE5D46620DFA211234EDEFC92",
+            "timestamp": "2026-10-21T14:24:06.521074992Z",
+            "signature": "gjNk3PzdslPKIanBhyFl3wyhEQ83q5KT4Q609V0nD4X11J+W25GuWii/5oAfeeFhda20K0JOwuz/6QNyhCHLAA=="
+          },
+          {
+            "block_id_flag": 2,
+            "validator_address": "CDB11EC8A68CEE528B96A44B9117BE88E0828518",
+            "timestamp": "2026-10-21T14:24:06.581679115Z",
+            "signature": "kKvF+N9eojjhF+J+ocxu3RO4KxOVVeCxyhNQ44l1oSb3gYtjzcf0fmEz65YmxBgKbGsHtcZepjho7vj2WUCPDw=="
+          }
+        ]
+      }
+    }
+  },
+  "block_results": {
+    "height": "18975581",
+    "txs_results": [
+      {
+        "code": 0,
+        "data": "EigKJi9jb3Ntb3MuYXV0aHoudjFiZXRhMS5Nc2dHcmFudFJlc3BvbnNlEigKJi9jb3Ntb3MuYXV0aHoudjFiZXRhMS5Nc2dHcmFudFJlc3BvbnNlEi4KLC9jb3Ntd2FzbS53YXNtLnYxLk1zZ0V4ZWN1dGVDb250cmFjdFJlc3BvbnNl",
+        "log": "",
+        "info": "",
+        "gas_wanted": "322448",
+        "gas_used": "261267",
+        "events": [
+          {
+            "type": "use_feegrant",
+            "attributes": [
+              {
+                "key": "granter",
+                "value": "xion1xrqz2wpt4rw8rtdvrc4n4yn5h54jm0nn4evn2x",
+                "index": true
+              },
+              {
+                "key": "grantee",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "update_feegrant",
+            "attributes": [
+              {
+                "key": "granter",
+                "value": "xion1xrqz2wpt4rw8rtdvrc4n4yn5h54jm0nn4evn2x",
+                "index": true
+              },
+              {
+                "key": "grantee",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "coin_spent",
+            "attributes": [
+              {
+                "key": "spender",
+                "value": "xion1xrqz2wpt4rw8rtdvrc4n4yn5h54jm0nn4evn2x",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "404uxion",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "coin_received",
+            "attributes": [
+              {
+                "key": "receiver",
+                "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "404uxion",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "transfer",
+            "attributes": [
+              {
+                "key": "recipient",
+                "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+                "index": true
+              },
+              {
+                "key": "sender",
+                "value": "xion1xrqz2wpt4rw8rtdvrc4n4yn5h54jm0nn4evn2x",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "404uxion",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "sender",
+                "value": "xion1xrqz2wpt4rw8rtdvrc4n4yn5h54jm0nn4evn2x",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "tx",
+            "attributes": [
+              {
+                "key": "fee",
+                "value": "404uxion",
+                "index": true
+              },
+              {
+                "key": "fee_payer",
+                "value": "xion1xrqz2wpt4rw8rtdvrc4n4yn5h54jm0nn4evn2x",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "tx",
+            "attributes": [
+              {
+                "key": "acc_seq",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn/0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "tx",
+            "attributes": [
+              {
+                "key": "signature",
+                "value": "AAyaljAPR5XhazkhkluSToBWx+UNOsVNvGdr/rTchAinM658MGVkzEae7v3zij5PUdgVt91ZfXOdC8tEVOIHcc8c",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "before_tx",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "before_tx",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "action",
+                "value": "/cosmos.authz.v1beta1.MsgGrant",
+                "index": true
+              },
+              {
+                "key": "sender",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              },
+              {
+                "key": "module",
+                "value": "authz",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "cosmos.authz.v1beta1.EventGrant",
+            "attributes": [
+              {
+                "key": "grantee",
+                "value": "\"xion1420tceyrux3fgvn7fcn3swfmt2fg69fn06ea9j\"",
+                "index": true
+              },
+              {
+                "key": "granter",
+                "value": "\"xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn\"",
+                "index": true
+              },
+              {
+                "key": "msg_type_url",
+                "value": "\"/cosmwasm.wasm.v1.MsgExecuteContract\"",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "action",
+                "value": "/cosmos.authz.v1beta1.MsgGrant",
+                "index": true
+              },
+              {
+                "key": "sender",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              },
+              {
+                "key": "module",
+                "value": "authz",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "1",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "cosmos.authz.v1beta1.EventGrant",
+            "attributes": [
+              {
+                "key": "grantee",
+                "value": "\"xion1420tceyrux3fgvn7fcn3swfmt2fg69fn06ea9j\"",
+                "index": true
+              },
+              {
+                "key": "granter",
+                "value": "\"xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn\"",
+                "index": true
+              },
+              {
+                "key": "msg_type_url",
+                "value": "\"/cosmwasm.wasm.v1.MsgInstantiateContract2\"",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "1",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "action",
+                "value": "/cosmwasm.wasm.v1.MsgExecuteContract",
+                "index": true
+              },
+              {
+                "key": "sender",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              },
+              {
+                "key": "module",
+                "value": "wasm",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "2",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "execute",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1qeycn2rdy6qg8ckcuc0t6rq38u2fkemplz93vq80hyct3365e0nsrwrf22",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "2",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "set_feegrant",
+            "attributes": [
+              {
+                "key": "granter",
+                "value": "xion1qeycn2rdy6qg8ckcuc0t6rq38u2fkemplz93vq80hyct3365e0nsrwrf22",
+                "index": true
+              },
+              {
+                "key": "grantee",
+                "value": "xion1420tceyrux3fgvn7fcn3swfmt2fg69fn06ea9j",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "2",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "after_tx",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1fhaxdvkwrgzked7rdhwsrrkl6ypycaz4e225w7fd887pwn9vppjqevj8fn",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "after_tx",
+                "index": true
+              }
+            ]
+          }
+        ],
+        "codespace": ""
+      }
+    ],
+    "finalize_block_events": [
+      {
+        "type": "coin_received",
+        "attributes": [
+          {
+            "key": "receiver",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "111507uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coinbase",
+        "attributes": [
+          {
+            "key": "minter",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "111507uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_spent",
+        "attributes": [
+          {
+            "key": "spender",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "111507uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_received",
+        "attributes": [
+          {
+            "key": "receiver",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "111507uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "transfer",
+        "attributes": [
+          {
+            "key": "recipient",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "sender",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "111507uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "attributes": [
+          {
+            "key": "sender",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "mint",
+        "attributes": [
+          {
+            "key": "bonded_ratio",
+            "value": "0.035908626979653378",
+            "index": true
+          },
+          {
+            "key": "inflation",
+            "value": "0.200000000000000000",
+            "index": true
+          },
+          {
+            "key": "annual_provisions",
+            "value": "1456093451081.200000000000000000",
+            "index": true
+          },
+          {
+            "key": "needed_amount",
+            "value": "112007",
+            "index": true
+          },
+          {
+            "key": "minted_amount",
+            "value": "111507",
+            "index": true
+          },
+          {
+            "key": "collected_amount",
+            "value": "500",
+            "index": true
+          },
+          {
+            "key": "burned_amount",
+            "value": "0",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_spent",
+        "attributes": [
+          {
+            "key": "spender",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "112007uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_received",
+        "attributes": [
+          {
+            "key": "receiver",
+            "value": "xion1jv65s3grqf6v6jl3dp4t6c9t9rk99cd89k77l5",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "112007uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "transfer",
+        "attributes": [
+          {
+            "key": "recipient",
+            "value": "xion1jv65s3grqf6v6jl3dp4t6c9t9rk99cd89k77l5",
+            "index": true
+          },
+          {
+            "key": "sender",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "112007uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "attributes": [
+          {
+            "key": "sender",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "1733.877179681404919808uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper189azcu40j39uu2qq5p2m3s8vm253gfzw6czndu",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "17338.771796814049198081uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper189azcu40j39uu2qq5p2m3s8vm253gfzw6czndu",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "1506.116415082335411203uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1u8hvyz3wqe3rm4zk9zw6upsn2f3nk8k3cakhvu",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "15061.164150823354112026uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1u8hvyz3wqe3rm4zk9zw6upsn2f3nk8k3cakhvu",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "738.974871104643879782uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper19w2488ntfgpduzqq3sk4j5x387zynwkn6mp4l4",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "14779.497422092877595634uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper19w2488ntfgpduzqq3sk4j5x387zynwkn6mp4l4",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "679.089406672706569272uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1nr82enz0h7fzz2u8smww9kmsnk3jgr9ry0td0n",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "13581.788133454131385441uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1nr82enz0h7fzz2u8smww9kmsnk3jgr9ry0td0n",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "1280.216140491045624762uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1t0655nxwf9hqlq5qys97cdacwrxky2usqan7p4",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "12802.161404910456247617uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1t0655nxwf9hqlq5qys97cdacwrxky2usqan7p4",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "624.847227572308572984uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper15d3j4eu0u677lyatmy5vfunex5mru77zpymnhq",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "12496.944551446171459686uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper15d3j4eu0u677lyatmy5vfunex5mru77zpymnhq",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "603.263131177353526075uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1jt9w26mpxxjsk63mvd4m2ynj0af09csl2t0zhf",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "12065.262623547070521504uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1jt9w26mpxxjsk63mvd4m2ynj0af09csl2t0zhf",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "571.833816183693784462uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1wah8wvytxwwt2pe8r285wsn5rkha6lcrpzmynr",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "11436.676323673875689246uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1wah8wvytxwwt2pe8r285wsn5rkha6lcrpzmynr",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "20.459359323801335169uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1n8ya3nf8c29tt97xudydvqa7d3n78vmjj7zj2p",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "204.593593238013351694uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1n8ya3nf8c29tt97xudydvqa7d3n78vmjj7zj2p",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      }
+    ],
+    "validator_updates": null,
+    "consensus_param_updates": {
+      "block": {
+        "max_bytes": "22020096",
+        "max_gas": "-1"
+      },
+      "evidence": {
+        "max_age_num_blocks": "100000",
+        "max_age_duration": "172800000000000",
+        "max_bytes": "1048576"
+      },
+      "validator": {
+        "pub_key_types": [
+          "ed25519"
+        ]
+      },
+      "version": {},
+      "abci": {}
+    },
+    "app_hash": "lriygKk2vi+iIz5b1yVrgVPPifWfS5b5ykfgwD4MAPQ="
+  }
+}
