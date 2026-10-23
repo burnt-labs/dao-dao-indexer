@@ -6,6 +6,7 @@ import {
 } from '@dao-dao/types/protobuf/codegen/cosmwasm/wasm/v1/query'
 
 import { AutoCosmWasmClient } from './AutoCosmWasmClient'
+import { connectCosmWasmClient } from './cometClient'
 
 /**
  * Get contract info.
@@ -26,7 +27,7 @@ export const getContractInfo = async ({
   let client: CosmWasmClient
   // let chainId: string
   if ('rpc' in connection) {
-    client = await CosmWasmClient.connect(connection.rpc)
+    client = await connectCosmWasmClient(connection.rpc)
     // chainId = await client.getChainId()
   } else if (connection.client instanceof AutoCosmWasmClient) {
     client = await connection.client.getValidClient()

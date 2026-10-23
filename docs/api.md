@@ -550,6 +550,106 @@ curl -X DELETE https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-regist
   -H 'X-Deposit-Webhook-Token: <management-token>'
 ```
 
+#### POST `/wallet-contracts`
+
+Map a wallet to a dossier contract.
+
+Served by both the per-chain indexer API and the accounts API. Authenticated
+with an API key in the `x-api-key` header (not account login); mappings are
+stored per account. The public `test` key cannot create mappings. Repeating an
+existing mapping is idempotent.
+
+A mapping is only the calling app's assertion: it does not prove the dossier
+contract exists on-chain or that the wallet owns it.
+
+Request:
+
+```ts
+{
+  "chainId": string
+  // Bech32 addresses; stored in canonical form.
+  "walletAddress": string
+  "dossierContractAddress": string
+}
+```
+
+Response (`201` when created, `200` when it already existed):
+
+```ts
+{
+  "id": number
+  "chainId": string
+  "walletAddress": string
+  "dossierContractAddress": string
+}
+```
+
+or error (`400` invalid body, `401` missing/invalid API key, `403` test key):
+
+```ts
+{
+  "error": string
+}
+```
+
+Example:
+
+```sh
+curl -X POST https://indexer.daodao.zone/xion-testnet-2/wallet-contracts \
+  -H 'Content-Type: application/json' \
+  -H 'x-api-key: <api-key>' \
+  -d '{
+    "chainId": "xion-testnet-2",
+    "walletAddress": "xion1...",
+    "dossierContractAddress": "xion1..."
+  }'
+```
+
+#### GET `/wallet-contracts`
+
+List the calling account's wallet-to-dossier mappings for a chain, newest
+first.
+
+Served by both the per-chain indexer API and the accounts API. Authenticated
+with an API key in the `x-api-key` header.
+
+Query:
+
+- `chainId` (required)
+- `walletAddress` (optional): only this wallet's mappings.
+- `dossierContractAddress` (optional): only mappings to this contract.
+
+Response:
+
+```ts
+{
+  "walletContracts": {
+    "id": number
+    "chainId": string
+    "walletAddress": string
+    "dossierContractAddress": string
+    // Whether this is the most recently added mapping for its wallet.
+    "current": boolean
+  }[]
+}
+```
+
+or error (`400` missing `chainId` or invalid address, `401` missing/invalid API
+key):
+
+```ts
+{
+  "error": string
+}
+```
+
+Example:
+
+```sh
+curl 'https://indexer.daodao.zone/xion-testnet-2/wallet-contracts?chainId=xion-testnet-2&walletAddress=xion1...' \
+  -H 'x-api-key: <api-key>'
+```
+
 #### GET `/webhooks`
 
 List webhooks.

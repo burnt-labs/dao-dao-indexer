@@ -175,57 +175,82 @@ export class WasmCodeTrackerManager {
     }
 
     // Get all tracked state events for the contracts that are being
-    // exported.
-    const trackedStateEvents = await this.getTrackedStateEvents(
+    // exported, indexed by contract so matching stays linear when a tracker
+    // matches a large share of a chain's contracts (e.g. XION accounts).
+    const trackedStateEventsByContract = new Map<
+      string,
+      { key: string; value: string }[]
+    >()
+    for (const event of await this.getTrackedStateEvents(
       contracts.map(({ address }) => address),
       stateEventUpdates
-    )
+    )) {
+      const events = trackedStateEventsByContract.get(event.contractAddress)
+      if (events) {
+        events.push(event)
+      } else {
+        trackedStateEventsByContract.set(event.contractAddress, [event])
+      }
+    }
+
+    // Code IDs to save per code key. Many contracts share a code ID, so save
+    // each code key once instead of once per contract.
+    const codeIdsByCodeKey = new Map<string, Set<number>>()
+    for (const { address, codeId } of contracts) {
+      const trackedStateEvents = trackedStateEventsByContract.get(address) ?? []
+      for (const { codeKey, contractAddresses, stateKeys } of this.trackers) {
+        const matches =
+          contractAddresses.has(address) ||
+          stateKeys.some(({ dbKey, ...trackerFilter }) =>
+            trackedStateEvents.some(
+              (wasmState) =>
+                wasmState.key === dbKey &&
+                ('value' in trackerFilter
+                  ? wasmState.value === trackerFilter.value
+                  : wasmState.value.includes(trackerFilter.partialValue))
+            )
+          )
+        if (!matches) {
+          continue
+        }
+
+        const codeIds = codeIdsByCodeKey.get(codeKey)
+        if (codeIds) {
+          codeIds.add(codeId)
+        } else {
+          codeIdsByCodeKey.set(codeKey, new Set([codeId]))
+        }
+      }
+    }
 
     let updatedCodeKey = false
     await Promise.all(
-      contracts.flatMap(({ address, codeId }) => {
-        const trackers = this.trackers.filter(
-          (t) =>
-            t.contractAddresses.has(address) ||
-            t.stateKeys.some(({ dbKey, ...trackerFilter }) =>
-              trackedStateEvents.some(
-                (wasmState) =>
-                  wasmState.contractAddress === address &&
-                  wasmState.key === dbKey &&
-                  ('value' in trackerFilter
-                    ? wasmState.value === trackerFilter.value
-                    : wasmState.value.includes(trackerFilter.partialValue))
-              )
-            )
-        )
-
-        if (!trackers.length) {
-          return []
+      [...codeIdsByCodeKey].map(async ([codeKey, codeIdSet]) => {
+        const codeIds = [...codeIdSet]
+        try {
+          await WasmCodeKey.createFromKeyAndIds(codeKey, codeIds)
+          updatedCodeKey = true
+        } catch (err) {
+          // Capture failures and move on.
+          console.error(
+            `Failed to save tracked wasm code IDs ${codeIds.join(
+              ', '
+            )} for code key ${codeKey}:`,
+            err
+          )
+          Sentry.captureException(err, {
+            tags: {
+              type: 'failed-save-tracked-wasm-code',
+              script: 'export',
+              handler: 'wasm',
+              chainId: this.chainId,
+              codeKey,
+            },
+            extra: {
+              codeIds,
+            },
+          })
         }
-
-        return trackers.map(async ({ codeKey }) => {
-          try {
-            await WasmCodeKey.createFromKeyAndIds(codeKey, codeId)
-            updatedCodeKey = true
-          } catch (err) {
-            // Capture failures and move on.
-            console.error(
-              `Failed to save tracked wasm code for ${address} with code ID ${codeId} and code key ${codeKey}:`,
-              err
-            )
-            Sentry.captureException(err, {
-              tags: {
-                type: 'failed-save-tracked-wasm-code',
-                script: 'export',
-                handler: 'wasm',
-                chainId: this.chainId,
-                codeKey,
-                address,
-                codeId,
-              },
-            })
-          }
-        })
       })
     )
 

@@ -1,17 +1,11 @@
 import type { Params } from '@burnt-labs/xion-types'
 
 import { ContractFormula } from '@/types'
-
-// Stored authenticator shape (on-chain representation, snake_case keys).
-// Not produced by ts-codegen since the contract query responses return Binary;
-// derived from the account contract's state serialization.
-type Authenticator =
-  | { secp256_k1: { pubkey: string } }
-  | { ed25519: { pubkey: string } }
-  | { eth_wallet: { address: string } }
-  | { jwt: { aud: string; sub: string } }
-  | { secp256_r1: { pubkey: string } }
-  | { passkey: { passkey: string; url: string } }
+import {
+  XionAuthenticator,
+  XionAuthenticatorType,
+  getXionAuthenticatorIdentity,
+} from '@/utils'
 
 const AccountStorageKeys = {
   AUTHENTICATORS: 'authenticators',
@@ -21,7 +15,7 @@ const TreasuryStorageKeys = {
   PARAMS: 'params',
 }
 
-export const authenticators: ContractFormula<Authenticator[]> = {
+export const authenticators: ContractFormula<XionAuthenticator[]> = {
   docs: {
     description: 'Get authenticator map for account',
   },
@@ -29,12 +23,43 @@ export const authenticators: ContractFormula<Authenticator[]> = {
     const { contractAddress, getMap } = env
 
     const authenticatorMap =
-      (await getMap<number, Authenticator>(
+      (await getMap<number, XionAuthenticator>(
         contractAddress,
-        AccountStorageKeys.AUTHENTICATORS
+        AccountStorageKeys.AUTHENTICATORS,
+        { keyType: 'number' }
       )) ?? {}
 
     return Object.values(authenticatorMap)
+  },
+}
+
+export const authenticatorIdentities: ContractFormula<
+  {
+    index: number
+    type: XionAuthenticatorType
+    authenticator: string
+  }[]
+> = {
+  docs: {
+    description:
+      'Get the login identity of each authenticator on the account, sorted by index (authenticators that cannot be decoded are omitted)',
+  },
+  compute: async (env) => {
+    const { contractAddress, getMap } = env
+
+    const authenticatorMap =
+      (await getMap<number, XionAuthenticator>(
+        contractAddress,
+        AccountStorageKeys.AUTHENTICATORS,
+        { keyType: 'number' }
+      )) ?? {}
+
+    return Object.entries(authenticatorMap)
+      .flatMap(([index, value]) => {
+        const identity = getXionAuthenticatorIdentity(value)
+        return identity ? [{ index: Number(index), ...identity }] : []
+      })
+      .sort((a, b) => a.index - b.index)
   },
 }
 

@@ -1,9 +1,11 @@
 import Router from '@koa/router'
 import { koaBody } from 'koa-body'
 
+import { apiKeyAuth } from './apiKeyAuth'
 import { authMiddleware } from './auth'
 import { createCodeIdSet } from './createCodeIdSet'
 import { createKey } from './createKey'
+import { createWalletContract } from './createWalletContract'
 import { createWebhook } from './createWebhook'
 import { deleteCodeIdSet } from './deleteCodeIdSet'
 import { deleteWebhook } from './deleteWebhook'
@@ -13,6 +15,7 @@ import { getNonce } from './getNonce'
 import { getWebhookEvents } from './getWebhookEvents'
 import { listCodeIdSets } from './listCodeIdSets'
 import { listKeys } from './listKeys'
+import { listWalletContracts } from './listWalletContracts'
 import { listWebhooks } from './listWebhooks'
 import { login } from './login'
 import { paymentWebhook } from './paymentWebhook'
@@ -36,6 +39,11 @@ accountRouter.get('/nonce/:publicKey', getNonce)
 
 // Login.
 accountRouter.post('/login', login)
+
+//! API-key-authenticated routes.
+accountRouter.post('/wallet-contracts', apiKeyAuth, createWalletContract)
+
+accountRouter.get('/wallet-contracts', apiKeyAuth, listWalletContracts)
 
 //! Authenticated routes.
 
