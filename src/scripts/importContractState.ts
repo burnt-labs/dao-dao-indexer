@@ -30,6 +30,7 @@ import {
   Verification,
   getExportBlock,
   importRecord,
+  invalidateImportedComputations,
   loadExport,
   transformContracts,
   validateExport,
@@ -116,14 +117,10 @@ const main = async () => {
       )
       let events = 0
       let created = 0
-      let destroyed = 0
-      let updated = 0
       for (const record of data.records) {
         const result = await importRecord(record, dryRun)
         events += result.events
         created += result.existed ? 0 : 1
-        destroyed += result.computations.destroyed
-        updated += result.computations.updated
         console.log(
           [
             record.address,
@@ -151,14 +148,22 @@ const main = async () => {
       )
 
       if (!dryRun) {
-        console.log(
-          `cached computations depending on the imported state: ${destroyed} deleted, ${updated} validity shortened`
-        )
         const transformed = await transformContracts(
           data.records.map(({ address }) => address)
         )
         console.log(
           `re-transformed the imported contracts: ${transformed} transformations upserted`
+        )
+
+        let destroyed = 0
+        let updated = 0
+        for (const record of data.records) {
+          const invalidated = await invalidateImportedComputations(record)
+          destroyed += invalidated.destroyed
+          updated += invalidated.updated
+        }
+        console.log(
+          `cached computations depending on the imported state: ${destroyed} deleted, ${updated} validity shortened`
         )
       }
     }

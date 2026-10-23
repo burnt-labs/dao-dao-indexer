@@ -13,26 +13,19 @@ import {
   Block as BlockModel,
   Contract,
   WasmStateEvent,
+  WasmStateEventTransformation,
   invalidateComputationsDependentOnChanges,
 } from '@/db'
 import { compute, getTypedFormula } from '@/formulas'
 import { transformParsedStateEvents } from '@/transformers'
 import { getProcessedTransformers } from '@/transformers/transformers'
-import {
-  Block,
-  DependableEventModel,
-  FormulaType,
-  ParsedWasmStateEvent,
-} from '@/types'
+import { Block, FormulaType, ParsedWasmStateEvent } from '@/types'
 import {
   XionAuthenticatorIdentity,
   getXionAuthenticatorIdentity,
 } from '@/utils'
 
-import {
-  defaultSaveEvents,
-  recoverContractState,
-} from './contract-state-recovery'
+import { recoverContractState } from './contract-state-recovery'
 
 export const EXPORT_FORMAT = 'xion-contract-state-export/v1'
 
@@ -247,8 +240,6 @@ export type ImportResult = {
   existed: boolean
   events: number
   transformations: string[]
-  /** Cached computations depending on the written state. */
-  computations: { destroyed: number; updated: number }
 }
 
 /**
@@ -266,14 +257,11 @@ export const importRecord = async (
     existed,
     events: 0,
     transformations: [],
-    computations: { destroyed: 0, updated: 0 },
   }
 
   // Dry-run writes nothing, so later snapshots must see earlier ones here.
   const pending = new Map<string, ParsedWasmStateEvent>()
   const transformers = getProcessedTransformers()
-  // Written events and transformations, for cache invalidation.
-  const changed: DependableEventModel[] = []
 
   for (const snapshot of record.snapshots) {
     const recovery = await recoverContractState({
@@ -351,16 +339,6 @@ export const importRecord = async (
             updateState: async () => {},
           }
         : {
-            saveEvents: async (events) => {
-              const saved = await defaultSaveEvents(events)
-              changed.push(...saved)
-              return saved
-            },
-            transformEvents: async (events) => {
-              const transformations = await transformParsedStateEvents(events)
-              changed.push(...transformations)
-              return transformations
-            },
             // Record the block, but leave the indexer's cursors in `State`
             // alone: the listener resumes from `latestBlockHeight`, and
             // webhooks are suppressed below `lastWasmBlockHeightExported`.
@@ -375,11 +353,46 @@ export const importRecord = async (
     result.events += recovery.events
   }
 
-  // Cached computations (range queries) may already cover these heights, and
-  // nothing else revalidates them when older events are inserted.
-  result.computations = await invalidateComputationsDependentOnChanges(changed)
-
   return result
+}
+
+/**
+ * Invalidate cached computations (range queries) that depend on the record's
+ * state at its snapshot heights, as stored now: its state events and their
+ * transformations. Nothing else revalidates a cached range when older events
+ * are inserted below it.
+ *
+ * This reads what is stored rather than what one run wrote, so a retry after
+ * a run that failed between writing and invalidating still invalidates. Run it
+ * after `transformContracts`, so repaired transformations are included.
+ */
+export const invalidateImportedComputations = async (
+  record: ContractStateRecord
+) => {
+  const blockHeight = [
+    ...new Set(record.snapshots.map(({ blockHeight }) => blockHeight)),
+  ]
+  const keys = [
+    ...new Set(
+      record.snapshots.flatMap(({ entries }) =>
+        entries.map(({ key }) =>
+          Array.from(Buffer.from(key, 'base64')).join(',')
+        )
+      )
+    ),
+  ]
+  const [events, transformations] = await Promise.all([
+    WasmStateEvent.findAll({
+      where: { contractAddress: record.address, key: keys, blockHeight },
+    }),
+    WasmStateEventTransformation.findAll({
+      where: { contractAddress: record.address, blockHeight },
+    }),
+  ])
+  return await invalidateComputationsDependentOnChanges([
+    ...events,
+    ...transformations,
+  ])
 }
 
 /**

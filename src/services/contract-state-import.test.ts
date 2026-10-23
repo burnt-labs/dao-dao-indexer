@@ -21,6 +21,7 @@ import {
   expectedIdentities,
   getExportBlock,
   importRecord,
+  invalidateImportedComputations,
   recordSha256,
   transformContracts,
   validateExport,
@@ -394,7 +395,7 @@ describe.runIf(integrationTests)('contract state import', () => {
     })
   })
 
-  it('invalidates cached computations of the imported state', async () => {
+  it('invalidates cached computations of the imported state on retry', async () => {
     const record = makeRecord()
     const state = await State.mustGetSingleton()
     const forward = getTypedFormula(
@@ -455,10 +456,21 @@ describe.runIf(integrationTests)('contract state import', () => {
       ]
     )
 
+    // A first attempt writes the state but fails before invalidating. The
+    // retry writes nothing, and still invalidates from what is stored.
+    expect(await importRecord(record, false)).toMatchObject({ events: 2 })
+    expect(await importRecord(record, false)).toMatchObject({ events: 0 })
+    await transformContracts([record.address])
+
     // Matched through the account's state key prefix (forward) and the
     // wildcard transformation key (reverse).
-    expect(await importRecord(record, false)).toMatchObject({
-      computations: { destroyed: 2, updated: 1 },
+    expect(await invalidateImportedComputations(record)).toEqual({
+      destroyed: 2,
+      updated: 1,
+    })
+    expect(await invalidateImportedComputations(record)).toEqual({
+      destroyed: 0,
+      updated: 0,
     })
 
     expect(await Computation.findByPk(cachedLater.id)).toBeNull()
