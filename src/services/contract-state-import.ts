@@ -9,18 +9,28 @@ import { readFile } from 'fs/promises'
 
 import { Op } from 'sequelize'
 
-import { Contract, WasmStateEvent } from '@/db'
+import {
+  Block as BlockModel,
+  Contract,
+  WasmStateEvent,
+  invalidateComputationsDependentOnChanges,
+} from '@/db'
 import { compute, getTypedFormula } from '@/formulas'
 import { transformParsedStateEvents } from '@/transformers'
 import { getProcessedTransformers } from '@/transformers/transformers'
-import { Block, FormulaType, ParsedWasmStateEvent } from '@/types'
+import {
+  Block,
+  DependableEventModel,
+  FormulaType,
+  ParsedWasmStateEvent,
+} from '@/types'
 import {
   XionAuthenticatorIdentity,
   getXionAuthenticatorIdentity,
 } from '@/utils'
 
 import {
-  defaultGetLatestEvents,
+  defaultSaveEvents,
   recoverContractState,
 } from './contract-state-recovery'
 
@@ -89,6 +99,12 @@ export const validateExport = (data: ContractStateExport): string[] => {
       `count ${data.count} does not match ${data.records?.length} records`
     )
   }
+  const exportHeight = /^\d+$/.test(String(data.exportHeight))
+    ? BigInt(data.exportHeight)
+    : undefined
+  if (exportHeight === undefined) {
+    problems.push(`invalid export height ${data.exportHeight}`)
+  }
   const seen = new Set<string>()
   for (const record of data.records ?? []) {
     if (seen.has(record.address)) {
@@ -109,6 +125,12 @@ export const validateExport = (data: ContractStateExport): string[] => {
     )
     if (heights.some((height, i) => i > 0 && height <= heights[i - 1])) {
       problems.push(`${record.address}: snapshots not ascending by height`)
+    }
+    if (
+      exportHeight !== undefined &&
+      heights.some((height) => height > exportHeight)
+    ) {
+      problems.push(`${record.address}: snapshot above export height`)
     }
     // Keys removed between snapshots would need delete events, which the
     // recovery path does not write.
@@ -164,11 +186,69 @@ export const loadExport = async (source: string) => {
   }
 }
 
+type StoredStateEvent = Pick<
+  WasmStateEvent,
+  'blockHeight' | 'value' | 'valueJson' | 'delete'
+>
+
+/**
+ * The stored event for each key at or before `blockHeight`, so an earlier
+ * snapshot is compared with the state at its own height rather than with a
+ * later snapshot already imported.
+ */
+export const getStoredEventsAtHeight = async (
+  events: ParsedWasmStateEvent[],
+  blockHeight: string
+): Promise<Map<string, StoredStateEvent>> => {
+  const stored = await WasmStateEvent.findAll({
+    where: {
+      contractAddress: {
+        [Op.in]: [...new Set(events.map((event) => event.contractAddress))],
+      },
+      key: { [Op.in]: [...new Set(events.map((event) => event.key))] },
+      blockHeight: { [Op.lte]: blockHeight },
+    },
+    order: [['blockHeight', 'DESC']],
+    attributes: [
+      'contractAddress',
+      'key',
+      'blockHeight',
+      'value',
+      'valueJson',
+      'delete',
+    ],
+  })
+
+  const byKey = new Map<string, StoredStateEvent>()
+  stored.forEach((event) => {
+    const key = `${event.contractAddress}:${event.key}`
+    if (!byKey.has(key)) {
+      byKey.set(key, event)
+    }
+  })
+  return byKey
+}
+
+/**
+ * The block to verify at: the export height, with the time of the indexed
+ * block at (or just before) it. The export's `chainAuthenticators` are the
+ * chain's answer at that height, so later changes must not count.
+ */
+export const getExportBlock = async (exportHeight: string): Promise<Block> => {
+  const block = await BlockModel.getForHeight(exportHeight)
+  if (!block) {
+    throw new Error(`no indexed block at or before height ${exportHeight}`)
+  }
+  return { height: BigInt(exportHeight), timeUnixMs: BigInt(block.timeUnixMs) }
+}
+
 export type ImportResult = {
   address: string
   existed: boolean
   events: number
   transformations: string[]
+  /** Cached computations depending on the written state. */
+  computations: { destroyed: number; updated: number }
 }
 
 /**
@@ -186,11 +266,14 @@ export const importRecord = async (
     existed,
     events: 0,
     transformations: [],
+    computations: { destroyed: 0, updated: 0 },
   }
 
   // Dry-run writes nothing, so later snapshots must see earlier ones here.
   const pending = new Map<string, ParsedWasmStateEvent>()
   const transformers = getProcessedTransformers()
+  // Written events and transformations, for cache invalidation.
+  const changed: DependableEventModel[] = []
 
   for (const snapshot of record.snapshots) {
     const recovery = await recoverContractState({
@@ -201,9 +284,20 @@ export const importRecord = async (
       pageLimit: Math.max(1, snapshot.entries.length),
       fetchPage: snapshotFetchPage(snapshot),
       getLatestEvents: async (events) => {
-        const latest = await defaultGetLatestEvents(events)
-        pending.forEach((event, key) => latest.set(key, event))
-        return latest
+        const stored = await getStoredEventsAtHeight(
+          events,
+          snapshot.blockHeight
+        )
+        pending.forEach((event, key) => {
+          const existing = stored.get(key)
+          if (
+            !existing ||
+            BigInt(event.blockHeight) >= BigInt(existing.blockHeight)
+          ) {
+            stored.set(key, event)
+          }
+        })
+        return stored
       },
       // Keep instantiation info from the chain, not the snapshot height, and
       // never touch a contract row the tracer already wrote.
@@ -230,35 +324,60 @@ export const importRecord = async (
           { ignoreDuplicates: true }
         )
       },
-      ...(dryRun && {
-        saveEvents: async (events) => {
-          events.forEach((event) =>
-            pending.set(`${event.contractAddress}:${event.key}`, event)
-          )
-          return events.map(() => ({ contract: undefined }))
-        },
-        transformEvents: async (events) => {
-          result.transformations.push(
-            ...events.flatMap((event) =>
-              transformers
-                .filter((transformer) => transformer.filter(event))
-                .flatMap((transformer) => {
-                  const name =
-                    typeof transformer.name === 'string'
-                      ? transformer.name
-                      : transformer.name(event)
-                  return name ? [name] : []
-                })
-            )
-          )
-          return []
-        },
-        updateState: async () => {},
-      }),
+      ...(dryRun
+        ? {
+            saveEvents: async (events) => {
+              events.forEach((event) =>
+                pending.set(`${event.contractAddress}:${event.key}`, event)
+              )
+              return events.map(() => ({ contract: undefined }))
+            },
+            transformEvents: async (events) => {
+              result.transformations.push(
+                ...events.flatMap((event) =>
+                  transformers
+                    .filter((transformer) => transformer.filter(event))
+                    .flatMap((transformer) => {
+                      const name =
+                        typeof transformer.name === 'string'
+                          ? transformer.name
+                          : transformer.name(event)
+                      return name ? [name] : []
+                    })
+                )
+              )
+              return []
+            },
+            updateState: async () => {},
+          }
+        : {
+            saveEvents: async (events) => {
+              const saved = await defaultSaveEvents(events)
+              changed.push(...saved)
+              return saved
+            },
+            transformEvents: async (events) => {
+              const transformations = await transformParsedStateEvents(events)
+              changed.push(...transformations)
+              return transformations
+            },
+            // Record the block, but leave the indexer's cursors in `State`
+            // alone: the listener resumes from `latestBlockHeight`, and
+            // webhooks are suppressed below `lastWasmBlockHeightExported`.
+            updateState: async ({ blockHeight, blockTimeUnixMs }) => {
+              await BlockModel.createMany([
+                { height: blockHeight, timeUnixMs: blockTimeUnixMs },
+              ])
+            },
+          }),
     })
 
     result.events += recovery.events
   }
+
+  // Cached computations (range queries) may already cover these heights, and
+  // nothing else revalidates them when older events are inserted.
+  result.computations = await invalidateComputationsDependentOnChanges(changed)
 
   return result
 }
@@ -325,7 +444,7 @@ export type Verification = {
   problems: string[]
 }
 
-/** Check both xion account formulas for one record at the latest block. */
+/** Check both xion account formulas for one record at the given block. */
 export const verifyRecord = async (
   record: ContractStateRecord,
   chainId: string,

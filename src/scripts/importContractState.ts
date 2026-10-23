@@ -11,10 +11,12 @@
  *
  * After the import, all state events of the imported contracts are
  * re-transformed (what `npm run transform -- -a <addresses>` does, in process,
- * without the worker queue), then xion account formulas are verified:
- * `authenticatorIdentities` must return the authenticators recorded in the
- * file and `accountsByAuthenticator` must resolve each of them back to the
- * account.
+ * without the worker queue), then xion account formulas are verified at the
+ * export height: `authenticatorIdentities` must return the authenticators
+ * recorded in the file and `accountsByAuthenticator` must resolve each of them
+ * back to the account. Cached computations depending on the imported state
+ * are invalidated, and the indexer's block cursors in `State` are left alone,
+ * so an export ahead of the indexer's latest block is refused.
  *
  * Usage:
  *   npm run import-contract-state -- -f <file or https URL> [--dry-run]
@@ -26,6 +28,7 @@ import { ConfigManager } from '@/config'
 import { State, loadDb } from '@/db'
 import {
   Verification,
+  getExportBlock,
   importRecord,
   loadExport,
   transformContracts,
@@ -78,6 +81,13 @@ const main = async () => {
         `export is for ${data.chainId} but this indexer DB is ${state.chainId}`
       )
     }
+    // Verification reads state at the export height, and the import must not
+    // write ahead of what the indexer has processed.
+    if (BigInt(data.exportHeight) > BigInt(state.latestBlockHeight)) {
+      throw new Error(
+        `export height ${data.exportHeight} is ahead of this indexer's latest block ${state.latestBlockHeight}; wait for it to catch up`
+      )
+    }
 
     const accountCodeIds = wasmCodeService.findWasmCodeIdsByKeys(
       XION_ACCOUNT_CODE_IDS_KEY
@@ -106,10 +116,14 @@ const main = async () => {
       )
       let events = 0
       let created = 0
+      let destroyed = 0
+      let updated = 0
       for (const record of data.records) {
         const result = await importRecord(record, dryRun)
         events += result.events
         created += result.existed ? 0 : 1
+        destroyed += result.computations.destroyed
+        updated += result.computations.updated
         console.log(
           [
             record.address,
@@ -137,6 +151,9 @@ const main = async () => {
       )
 
       if (!dryRun) {
+        console.log(
+          `cached computations depending on the imported state: ${destroyed} deleted, ${updated} validity shortened`
+        )
         const transformed = await transformContracts(
           data.records.map(({ address }) => address)
         )
@@ -146,17 +163,15 @@ const main = async () => {
       }
     }
 
-    const latest = await State.mustGetSingleton()
+    const block = await getExportBlock(data.exportHeight)
     console.log(
-      `\nverifying at latest block ${latest.latestBlockHeight}${
+      `\nverifying at export height ${data.exportHeight}${
         dryRun ? ' (current state, before any import)' : ''
       }`
     )
     const results: Verification[] = []
     for (const record of data.records) {
-      results.push(
-        await verifyRecord(record, latest.chainId, latest.latestBlock)
-      )
+      results.push(await verifyRecord(record, state.chainId, block))
     }
     const failed = results.filter(
       ({ forward, reverse }) => !forward || !reverse

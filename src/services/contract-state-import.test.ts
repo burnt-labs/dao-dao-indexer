@@ -2,13 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   Block,
+  Computation,
   Contract,
   State,
   WasmCodeKey,
   WasmStateEvent,
   WasmStateEventTransformation,
 } from '@/db'
+import { compute, getTypedFormula } from '@/formulas'
 import { WasmCodeService } from '@/services/wasm-codes'
+import { FormulaType } from '@/types'
 import { XION_ACCOUNT_CODE_IDS_KEY } from '@/utils'
 
 import {
@@ -16,6 +19,7 @@ import {
   ContractStateRecord,
   EXPORT_FORMAT,
   expectedIdentities,
+  getExportBlock,
   importRecord,
   recordSha256,
   transformContracts,
@@ -38,6 +42,7 @@ const b64 = (value: unknown) =>
   Buffer.from(JSON.stringify(value)).toString('base64')
 
 const JWT = { Jwt: { aud: 'project-test-1', sub: 'user-test-1' } }
+const OTHER_JWT = { Jwt: { aud: 'project-test-1', sub: 'user-test-2' } }
 
 const makeRecord = (
   overrides: Partial<ContractStateRecord> = {}
@@ -79,6 +84,27 @@ const makeRecord = (
   }
   record.sha256 = recordSha256(record)
   return record
+}
+
+/** contract_info changes from 0.1.0 at 100 to 0.2.0 at 200. */
+const makeUpgradedRecord = (overrides: Partial<ContractStateRecord> = {}) => {
+  const base = makeRecord()
+  return makeRecord({
+    snapshots: [
+      base.snapshots[0],
+      {
+        ...base.snapshots[1],
+        entries: [
+          base.snapshots[1].entries[0],
+          {
+            key: CONTRACT_INFO_KEY,
+            value: b64({ contract: 'account', version: '0.2.0' }),
+          },
+        ],
+      },
+    ],
+    ...overrides,
+  })
 }
 
 const makeExport = (records: ContractStateRecord[]): ContractStateExport => ({
@@ -127,6 +153,15 @@ describe('validateExport', () => {
     expect(validateExport(makeExport([record]))).toEqual([
       'xion1imported: key removed before height 200',
     ])
+  })
+
+  it('rejects snapshots above the export height', () => {
+    expect(
+      validateExport({ ...makeExport([makeRecord()]), exportHeight: '150' })
+    ).toEqual(['xion1imported: snapshot above export height'])
+    expect(
+      validateExport({ ...makeExport([makeRecord()]), exportHeight: 'latest' })
+    ).toEqual(['invalid export height latest'])
   })
 })
 
@@ -222,28 +257,9 @@ describe.runIf(integrationTests)('contract state import', () => {
   })
 
   it('re-transforms every event of every contract across pages', async () => {
-    const base = makeRecord()
     const addresses = ['xion1first', 'xion1second']
     for (const address of addresses) {
-      await importRecord(
-        makeRecord({
-          address,
-          snapshots: [
-            base.snapshots[0],
-            {
-              ...base.snapshots[1],
-              entries: [
-                base.snapshots[1].entries[0],
-                {
-                  key: CONTRACT_INFO_KEY,
-                  value: b64({ contract: 'account', version: '0.2.0' }),
-                },
-              ],
-            },
-          ],
-        }),
-        false
-      )
+      await importRecord(makeUpgradedRecord({ address }), false)
     }
     // Three events per contract: both keys at 100, contract_info at 200.
     expect(await WasmStateEvent.count()).toBe(6)
@@ -291,6 +307,165 @@ describe.runIf(integrationTests)('contract state import', () => {
       ['xion1second', '100'],
       ['xion1second', '200'],
     ])
+  })
+
+  it('compares each snapshot with the state at its own height', async () => {
+    const record = makeUpgradedRecord()
+    expect(await importRecord(record, false)).toMatchObject({ events: 3 })
+
+    // contract_info at 100 is not compared with the 0.2.0 stored at 200.
+    expect(await importRecord(record, false)).toMatchObject({ events: 0 })
+    const dryRun = await importRecord(record, true)
+    expect(dryRun).toMatchObject({ events: 0, transformations: [] })
+    expect(await WasmStateEvent.count()).toBe(3)
+  })
+
+  it('writes an earlier snapshot equal to later stored state', async () => {
+    // The tracer already has the same contract_info, but only from 300.
+    await importRecord(
+      makeRecord({
+        snapshots: [{ ...makeRecord().snapshots[0], blockHeight: '300' }],
+      }),
+      false
+    )
+
+    expect(await importRecord(makeRecord(), false)).toMatchObject({
+      events: 2,
+    })
+    expect(
+      (await WasmStateEvent.findAll({ order: [['blockHeight', 'ASC']] })).map(
+        ({ blockHeight }) => blockHeight
+      )
+    ).toEqual(['100', '100', '300', '300'])
+  })
+
+  it('records blocks without moving the indexer cursors', async () => {
+    await State.updateSingleton({
+      latestBlockHeight: 150,
+      latestBlockTimeUnixMs: 150000,
+      lastWasmBlockHeightExported: 150,
+    })
+
+    await importRecord(makeUpgradedRecord(), false)
+
+    expect(await State.mustGetSingleton()).toMatchObject({
+      latestBlockHeight: '150',
+      latestBlockTimeUnixMs: '150000',
+      lastWasmBlockHeightExported: '150',
+    })
+    expect(
+      (await Block.findAll({ order: [['height', 'ASC']] })).map(
+        ({ height }) => height
+      )
+    ).toEqual(['100', '200', '300'])
+  })
+
+  it('verifies at the export height, not the latest block', async () => {
+    const record = makeUpgradedRecord()
+    await expect(getExportBlock('200')).rejects.toThrow(
+      'no indexed block at or before height 200'
+    )
+
+    await importRecord(record, false)
+    // The account switches authenticators after the export.
+    await importRecord(
+      makeRecord({
+        snapshots: [
+          {
+            blockHeight: '250',
+            blockTimeUnixMs: '250000',
+            entries: [{ key: AUTHENTICATORS_KEY, value: b64(OTHER_JWT) }],
+          },
+        ],
+      }),
+      false
+    )
+
+    const state = await State.mustGetSingleton()
+    expect(
+      await verifyRecord(record, state.chainId, state.latestBlock)
+    ).toMatchObject({ forward: false })
+
+    const block = await getExportBlock('200')
+    expect(block).toEqual({ height: 200n, timeUnixMs: 200000n })
+    expect(await verifyRecord(record, state.chainId, block)).toMatchObject({
+      forward: true,
+      reverse: true,
+    })
+  })
+
+  it('invalidates cached computations of the imported state', async () => {
+    const record = makeRecord()
+    const state = await State.mustGetSingleton()
+    const forward = getTypedFormula(
+      FormulaType.Contract,
+      'xion/account/authenticatorIdentities'
+    )
+    const reverse = getTypedFormula(
+      FormulaType.Generic,
+      'xion/accountsByAuthenticator'
+    )
+    const reverseArgs = {
+      type: 'JWT',
+      authenticator: 'project-test-1.user-test-1',
+    }
+
+    // Range queries cache `[]` as valid through 300, before the import.
+    const forwardOutput = await compute({
+      ...forward,
+      chainId: state.chainId,
+      targetAddress: record.address,
+      args: {},
+      block: state.latestBlock,
+    })
+    const reverseOutput = await compute({
+      ...reverse,
+      chainId: state.chainId,
+      targetAddress: '_',
+      args: reverseArgs,
+      block: state.latestBlock,
+    })
+    expect(forwardOutput.value).toEqual([])
+    expect(reverseOutput.value).toEqual([])
+    const [cachedForward] = await Computation.createFromComputationOutputs(
+      record.address,
+      forward,
+      {},
+      [{ ...forwardOutput, latestBlockHeightValid: 300n }]
+    )
+    const [cachedReverse] = await Computation.createFromComputationOutputs(
+      '_',
+      reverse,
+      reverseArgs,
+      [{ ...reverseOutput, latestBlockHeightValid: 300n }]
+    )
+    // And one starting after the earliest imported height. The generic
+    // computation also starts at 300, the block it was computed at.
+    expect(cachedReverse.blockHeight).toBe('300')
+    const [cachedLater] = await Computation.createFromComputationOutputs(
+      record.address,
+      forward,
+      {},
+      [
+        {
+          ...forwardOutput,
+          block: { height: 150n, timeUnixMs: 150000n },
+          latestBlockHeightValid: 300n,
+        },
+      ]
+    )
+
+    // Matched through the account's state key prefix (forward) and the
+    // wildcard transformation key (reverse).
+    expect(await importRecord(record, false)).toMatchObject({
+      computations: { destroyed: 2, updated: 1 },
+    })
+
+    expect(await Computation.findByPk(cachedLater.id)).toBeNull()
+    expect(await Computation.findByPk(cachedReverse.id)).toBeNull()
+    expect(await Computation.findByPk(cachedForward.id)).toMatchObject({
+      latestBlockHeightValid: '99',
+    })
   })
 
   it('leaves an existing contract row untouched', async () => {
