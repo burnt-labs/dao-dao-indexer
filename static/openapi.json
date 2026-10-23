@@ -36,6 +36,119 @@
     }
   ],
   "paths": {
+    "/contract/{address}/state/recover": {
+      "post": {
+        "tags": [
+          "contract"
+        ],
+        "summary": "Recover live contract state into the events pipeline",
+        "operationId": "contract_state_recovery",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "description": "CosmWasm contract address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "rpc",
+            "in": "query",
+            "description": "Configured RPC target to query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "remote",
+                "local"
+              ],
+              "default": "remote"
+            }
+          },
+          {
+            "name": "pageLimit",
+            "in": "query",
+            "description": "Maximum entries to request per RPC page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000,
+              "default": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "live contract state recovery summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "chainId",
+                    "contractAddress",
+                    "rpc",
+                    "blockHeight",
+                    "blockTimeUnixMs",
+                    "count",
+                    "events",
+                    "transformations"
+                  ],
+                  "properties": {
+                    "chainId": {
+                      "type": "string"
+                    },
+                    "contractAddress": {
+                      "type": "string"
+                    },
+                    "rpc": {
+                      "type": "string",
+                      "enum": [
+                        "remote",
+                        "local"
+                      ]
+                    },
+                    "blockHeight": {
+                      "type": "string"
+                    },
+                    "blockTimeUnixMs": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "description": "Number of live contract state entries recovered."
+                    },
+                    "events": {
+                      "type": "integer",
+                      "description": "Number of WasmStateEvent records upserted."
+                    },
+                    "transformations": {
+                      "type": "integer",
+                      "description": "Number of transformations created or updated."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid address, rpc, or pageLimit"
+          },
+          "404": {
+            "description": "contract not found"
+          },
+          "500": {
+            "description": "internal recovery pipeline failure"
+          },
+          "502": {
+            "description": "RPC connection or query failed"
+          }
+        }
+      }
+    },
     "/{chainId}/contract/{contractAddress}/abstract/account/accountId": {
       "get": {
         "tags": [
@@ -12514,6 +12627,40 @@
         }
       }
     },
+    "/{chainId}/contract/{contractAddress}/xion/account/authenticatorIdentities": {
+      "get": {
+        "tags": [
+          "contract"
+        ],
+        "summary": "Get the login identity of each authenticator on the account, sorted by index (authenticators that cannot be decoded are omitted)",
+        "operationId": "xion_account_authenticatorIdentities_6e64d98",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractAddress",
+            "in": "path",
+            "description": "contract address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          }
+        }
+      }
+    },
     "/{chainId}/contract/{contractAddress}/xion/account/authenticators": {
       "get": {
         "tags": [
@@ -12611,7 +12758,22 @@
         ],
         "responses": {
           "200": {
-            "description": "success"
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -12645,7 +12807,156 @@
         ],
         "responses": {
           "200": {
-            "description": "success"
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "grantConfigs",
+                    "params"
+                  ],
+                  "properties": {
+                    "grantConfigs": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "authorization",
+                          "description",
+                          "optional"
+                        ],
+                        "properties": {
+                          "authorization": {
+                            "type": "object",
+                            "required": [
+                              "type_url",
+                              "value"
+                            ],
+                            "properties": {
+                              "type_url": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "optional": {
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "feeConfig": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "description"
+                          ],
+                          "properties": {
+                            "allowance": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "type_url",
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "type_url": {
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "expiration": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ],
+                              "format": "uint32",
+                              "minimum": 0
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "admin": {
+                      "oneOf": [
+                        {
+                          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "pendingAdmin": {
+                      "oneOf": [
+                        {
+                          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "params": {
+                      "type": "object",
+                      "required": [
+                        "icon_url",
+                        "metadata",
+                        "redirect_url"
+                      ],
+                      "properties": {
+                        "icon_url": {
+                          "type": "string"
+                        },
+                        "metadata": {
+                          "type": "string"
+                        },
+                        "redirect_url": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "balances": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -12679,7 +12990,17 @@
         ],
         "responses": {
           "200": {
-            "description": "success"
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -12713,7 +13034,62 @@
         ],
         "responses": {
           "200": {
-            "description": "success"
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "description"
+                      ],
+                      "properties": {
+                        "allowance": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "required": [
+                                "type_url",
+                                "value"
+                              ],
+                              "properties": {
+                                "type_url": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "expiration": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "format": "uint32",
+                          "minimum": 0
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -12747,7 +13123,48 @@
         ],
         "responses": {
           "200": {
-            "description": "success"
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "authorization",
+                      "description",
+                      "optional"
+                    ],
+                    "properties": {
+                      "authorization": {
+                        "type": "object",
+                        "required": [
+                          "type_url",
+                          "value"
+                        ],
+                        "properties": {
+                          "type_url": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "optional": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -12781,7 +13198,31 @@
         ],
         "responses": {
           "200": {
-            "description": "success"
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "icon_url",
+                    "metadata",
+                    "redirect_url"
+                  ],
+                  "properties": {
+                    "icon_url": {
+                      "type": "string"
+                    },
+                    "metadata": {
+                      "type": "string"
+                    },
+                    "redirect_url": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -12815,7 +13256,22 @@
         ],
         "responses": {
           "200": {
-            "description": "success"
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -14166,6 +14622,70 @@
             "name": "denom",
             "description": "native token denomination",
             "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "missing required arguments"
+          }
+        }
+      }
+    },
+    "/{chainId}/generic/_/xion/accountsByAuthenticator": {
+      "get": {
+        "tags": [
+          "generic"
+        ],
+        "summary": "Find XION account contracts that currently have the given authenticator (fails if more than 1000 accounts match)",
+        "operationId": "xion_accountsByAuthenticator_41f4293",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "description": "chain ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "description": "Authenticator type: Secp256K1, Ed25519, EthWallet, JWT, Secp256R1, Passkey, ZKEmail",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "authenticator",
+            "description": "Exact login identity: base64 pubkey (Secp256K1, Ed25519, Secp256R1), 0x address (EthWallet), base64 credential ID (Passkey), email salt (ZKEmail), or `aud.sub` (JWT)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "aud",
+            "description": "JWT only: audience to match together with `sub` when `authenticator` is omitted",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "in": "query"
+          },
+          {
+            "name": "sub",
+            "description": "JWT only: subject to match (optionally with `aud`) when `authenticator` is omitted; must not contain `*` unless `aud` is given",
+            "required": false,
             "schema": {
               "type": "string"
             },

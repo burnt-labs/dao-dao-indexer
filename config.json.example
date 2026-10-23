@@ -1,4 +1,5 @@
 {
+  "chainId": "juno-testnet",
   "home": "~/.juno/indexer",
   "localRpc": "http://localhost:26657",
   "remoteRpc": "https://juno-testnet-rpc.polkachu.com",
@@ -38,7 +39,9 @@
     "polytone-note": [],
     "polytone-voice": [],
     "valence-account": [],
-    "dao-rbam": []
+    "dao-rbam": [],
+    "xion-asset": [],
+    "xion-marketplace": []
   },
   "daoDaoBase": "https://testnet.daodao.zone",
   "discordNotifierApiKey": "key",
@@ -46,6 +49,7 @@
   "inboxSecret": "secret",
   "notifierSecret": "secret",
   "websocketsSecret": "secret",
+  "webhookTimeoutMs": 15000,
   "accountsJwtSecret": "secret",
   "rbamWebhookBaseUrl": "",
   "rbamWebhookSecret": ""

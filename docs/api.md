@@ -364,6 +364,292 @@ On error:
 }
 ```
 
+#### POST `/deposit-webhook-registrations`
+
+Create a new deposit webhook registration.
+
+This registers a deposit-detection listener for matching inbound transfers to
+the supplied watched wallets and asset filters. It is not a generic
+balance-change subscription.
+
+These routes are served by the per-chain indexer API, not the global accounts
+API. Account login is not required. Creation returns a one-time management
+token that can be used to fetch, update, or delete the registration later.
+
+Request:
+
+```ts
+{
+  "description": string | null
+  "endpointUrl": string
+  "authHeader": string | null
+  "authToken": string | null
+  "watchedWallets": string[]
+  "allowedNativeDenoms": string[]
+  "allowedCw20Contracts": string[]
+  "enabled": boolean | undefined
+}
+```
+
+Response:
+
+```ts
+{
+  "registration": {
+    "id": number
+    "description": string | null
+    "endpointUrl": string
+    "authHeader": string | null
+    "authToken": string | null
+    "watchedWallets": string[]
+    "allowedNativeDenoms": string[]
+    "allowedCw20Contracts": string[]
+    "enabled": boolean
+  }
+  "managementToken": string
+}
+```
+
+Registered destinations receive the outbound deposit payload documented in
+[webhooks.md](./webhooks.md), including the stable `txHash` field for downstream
+on-chain verification.
+
+or error:
+
+```ts
+{
+  "error": string
+}
+```
+
+Example:
+
+```sh
+curl -X POST https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "description": "Production deposit listener",
+    "endpointUrl": "https://partner.example/deposits",
+    "authHeader": "Authorization",
+    "authToken": "secret-token",
+    "watchedWallets": ["xion1watchedwallet", "xion1secondwallet"],
+    "allowedNativeDenoms": ["uxion"],
+    "allowedCw20Contracts": ["xion1stablecoincontract"],
+    "enabled": true
+  }'
+```
+
+#### GET `/deposit-webhook-registrations/:id`
+
+Get a specific deposit webhook registration.
+
+This requires:
+- `X-Deposit-Webhook-Token: <management-token>`
+
+Response:
+
+```ts
+{
+  "registration": {
+    "id": number
+    "description": string | null
+    "endpointUrl": string
+    "authHeader": string | null
+    "authToken": string | null
+    "watchedWallets": string[]
+    "allowedNativeDenoms": string[]
+    "allowedCw20Contracts": string[]
+    "enabled": boolean
+  }
+}
+```
+
+#### PATCH `/deposit-webhook-registrations/:id`
+
+Update an existing deposit webhook registration.
+
+This requires:
+- `X-Deposit-Webhook-Token: <management-token>`
+
+Request:
+
+```ts
+{
+  "description": string | null | undefined
+  "endpointUrl": string | undefined
+  "authHeader": string | null | undefined
+  "authToken": string | null | undefined
+  "watchedWallets": string[] | undefined
+  "allowedNativeDenoms": string[] | undefined
+  "allowedCw20Contracts": string[] | undefined
+  "enabled": boolean | undefined
+}
+```
+
+Response:
+
+```ts
+{
+  "registration": {
+    "id": number
+    "description": string | null
+    "endpointUrl": string
+    "authHeader": string | null
+    "authToken": string | null
+    "watchedWallets": string[]
+    "allowedNativeDenoms": string[]
+    "allowedCw20Contracts": string[]
+    "enabled": boolean
+  }
+}
+```
+
+or error:
+
+```ts
+{
+  "error": string
+}
+```
+
+Example:
+
+```sh
+curl -X PATCH https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations/7 \
+  -H 'X-Deposit-Webhook-Token: <management-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "watchedWallets": ["xion1watchedwallet", "xion1thirdwallet"],
+    "allowedNativeDenoms": [],
+    "allowedCw20Contracts": ["xion1stablecoincontract"],
+    "enabled": true
+  }'
+```
+
+#### DELETE `/deposit-webhook-registrations/:id`
+
+Delete a deposit webhook registration.
+
+This requires:
+- `X-Deposit-Webhook-Token: <management-token>`
+
+Empty response on success.
+
+On error:
+
+```ts
+{
+  "error": string
+}
+```
+
+Example:
+
+```sh
+curl -X DELETE https://indexer.daodao.zone/xion-testnet-2/deposit-webhook-registrations/7 \
+  -H 'X-Deposit-Webhook-Token: <management-token>'
+```
+
+#### POST `/wallet-contracts`
+
+Map a wallet to a dossier contract.
+
+Served by both the per-chain indexer API and the accounts API. Authenticated
+with an API key in the `x-api-key` header (not account login); mappings are
+stored per account. The public `test` key cannot create mappings. Repeating an
+existing mapping is idempotent.
+
+A mapping is only the calling app's assertion: it does not prove the dossier
+contract exists on-chain or that the wallet owns it.
+
+Request:
+
+```ts
+{
+  "chainId": string
+  // Bech32 addresses; stored in canonical form.
+  "walletAddress": string
+  "dossierContractAddress": string
+}
+```
+
+Response (`201` when created, `200` when it already existed):
+
+```ts
+{
+  "id": number
+  "chainId": string
+  "walletAddress": string
+  "dossierContractAddress": string
+}
+```
+
+or error (`400` invalid body, `401` missing/invalid API key, `403` test key):
+
+```ts
+{
+  "error": string
+}
+```
+
+Example:
+
+```sh
+curl -X POST https://indexer.daodao.zone/xion-testnet-2/wallet-contracts \
+  -H 'Content-Type: application/json' \
+  -H 'x-api-key: <api-key>' \
+  -d '{
+    "chainId": "xion-testnet-2",
+    "walletAddress": "xion1...",
+    "dossierContractAddress": "xion1..."
+  }'
+```
+
+#### GET `/wallet-contracts`
+
+List the calling account's wallet-to-dossier mappings for a chain, newest
+first.
+
+Served by both the per-chain indexer API and the accounts API. Authenticated
+with an API key in the `x-api-key` header.
+
+Query:
+
+- `chainId` (required)
+- `walletAddress` (optional): only this wallet's mappings.
+- `dossierContractAddress` (optional): only mappings to this contract.
+
+Response:
+
+```ts
+{
+  "walletContracts": {
+    "id": number
+    "chainId": string
+    "walletAddress": string
+    "dossierContractAddress": string
+    // Whether this is the most recently added mapping for its wallet.
+    "current": boolean
+  }[]
+}
+```
+
+or error (`400` missing `chainId` or invalid address, `401` missing/invalid API
+key):
+
+```ts
+{
+  "error": string
+}
+```
+
+Example:
+
+```sh
+curl 'https://indexer.daodao.zone/xion-testnet-2/wallet-contracts?chainId=xion-testnet-2&walletAddress=xion1...' \
+  -H 'x-api-key: <api-key>'
+```
+
 #### GET `/webhooks`
 
 List webhooks.

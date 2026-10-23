@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+ARG APP_VERSION
+ENV APP_VERSION=${APP_VERSION}
+
 # Copy package.json and package-lock.json first for better layer caching
 COPY package*.json ./
 COPY patches ./
@@ -21,5 +24,5 @@ RUN adduser --disabled-password --gecos "" argus
 RUN chown -R argus:argus /app
 USER argus
 
-# Default command to run the server
-CMD ["node", "dist/server/serve.js"]
+# Default command to run both the accounts and indexer APIs.
+CMD ["node", "dist/server/serve.js", "--both"]

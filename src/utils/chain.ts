@@ -2,6 +2,8 @@ import { StargateClient } from '@cosmjs/stargate'
 
 import { ConfigManager } from '@/config'
 
+import { connectStargateClient } from './cometClient'
+
 let stargateClient: Partial<Record<'remote' | 'local', StargateClient>> = {}
 let lastRpc: Partial<Record<'remote' | 'local', string | undefined>> = {}
 
@@ -16,7 +18,7 @@ export const getStargateClient = async (
       throw new Error('RPC not configured')
     }
 
-    stargateClient[type] = await StargateClient.connect(rpc)
+    stargateClient[type] = await connectStargateClient(rpc)
     lastRpc[type] = rpc
 
     // Update the stargate client when the config changes.
@@ -30,7 +32,7 @@ export const getStargateClient = async (
         // Attempt to reconnect if the RPC is still configured. If this fails,
         // it should remain unset since it is no longer configured.
         if (newRpc) {
-          stargateClient[type] = await StargateClient.connect(newRpc)
+          stargateClient[type] = await connectStargateClient(newRpc)
         }
       }
     })

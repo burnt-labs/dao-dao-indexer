@@ -5,6 +5,7 @@ import { DaoExtractor } from './dao'
 import { DaoRbamExtractor } from './daoRbam'
 import { NftStakeUpdateExtractor } from './nftStakeUpdate'
 import { ProposalExtractor } from './proposal'
+import * as xionExtractors from './xion'
 
 export const getExtractors = () => [
   ContractExtractor,
@@ -12,6 +13,7 @@ export const getExtractors = () => [
   DaoRbamExtractor,
   ProposalExtractor,
   NftStakeUpdateExtractor,
+  ...Object.values(xionExtractors),
   // Add more extractors here.
 ]
 

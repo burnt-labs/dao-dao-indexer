@@ -10,8 +10,10 @@ import { objectMatchesStructure } from '@/utils'
 import {
   Account,
   AccountCodeIdSet,
+  AccountDepositWebhookRegistration,
   AccountKey,
   AccountKeyCredit,
+  AccountWalletContract,
   AccountWebhook,
   AccountWebhookCodeIdSet,
   AccountWebhookEvent,
@@ -49,6 +51,7 @@ type LoadDbOptions = {
 const getModelsForType = (type: DbType): SequelizeOptions['models'] =>
   type === DbType.Data
     ? [
+        AccountDepositWebhookRegistration,
         BankDenomBalance,
         BankStateEvent,
         Block,
@@ -79,6 +82,7 @@ const getModelsForType = (type: DbType): SequelizeOptions['models'] =>
         AccountWebhookCodeIdSet,
         AccountWebhookEvent,
         AccountWebhookEventAttempt,
+        AccountWalletContract,
       ]
     : []
 

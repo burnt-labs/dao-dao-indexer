@@ -1,0 +1,726 @@
+{
+  "_source": "xiond v32 (CometBFT v0.40, reports 0.39.0) single-validator localnet, chain xion-local-v32, height 290: JSON-RPC results of status, block and block_results",
+  "status": {
+    "node_info": {
+      "protocol_version": {
+        "p2p": "8",
+        "block": "11",
+        "app": "0"
+      },
+      "id": "c3503abb4ada1e93e61335c84da2c0f49935e099",
+      "listen_addr": "tcp://127.0.0.1:46656",
+      "network": "xion-local-v32",
+      "version": "0.39.0",
+      "channels": "40202122233038606100",
+      "moniker": "val",
+      "other": {
+        "tx_index": "on",
+        "rpc_address": "tcp://127.0.0.1:46657"
+      }
+    },
+    "sync_info": {
+      "latest_block_hash": "34AFB0E46D4E0127C4DC470605DCD9A07106E625F1773A5C7283FD5D8C215D71",
+      "latest_app_hash": "29D8585DEABD9CFD246ABBB6B99D3F09BFEEE6BFB96493072949AE6C86D88018",
+      "latest_block_height": "591",
+      "latest_block_time": "2026-10-21T15:46:22.544060765Z",
+      "earliest_block_hash": "1F95F58423AB265B50464BCA201130AE3FE93216D145097D77F064B2352D95B8",
+      "earliest_app_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "earliest_block_height": "1",
+      "earliest_block_time": "2026-10-21T15:23:02.270915163Z",
+      "catching_up": false
+    },
+    "validator_info": {
+      "address": "48A65B268832A6E8041E15A99B749E4553A5F6CB",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "pvRlx3M1vADdJ9xcz4ryyE9l4CWQPxKJgB0AtvmrV64="
+      },
+      "voting_power": "10000"
+    }
+  },
+  "block": {
+    "block_id": {
+      "hash": "C952879BAA6BE0BC1D1C83FCDC57E9DCBD144E749971356D442100FBC815266E",
+      "parts": {
+        "total": 1,
+        "hash": "932BE58A74CFB33CE254035E5501CA895797574B6DD5D81739A82AFA24EACF6D"
+      }
+    },
+    "block": {
+      "header": {
+        "version": {
+          "block": "11"
+        },
+        "chain_id": "xion-local-v32",
+        "height": "290",
+        "time": "2026-10-21T15:28:27.722754077Z",
+        "last_block_id": {
+          "hash": "5217EA6D38DACCE6CF5678CE935121C097F9653CFD06EC6DEAB573816D4A3073",
+          "parts": {
+            "total": 1,
+            "hash": "FC0A944C5561011DC470323FAAD1F88C2ABE8E61A3E3D39ED4C39FF6CC44AE49"
+          }
+        },
+        "last_commit_hash": "4A26B408E0EB4C4D2888D04232D88953CD0AFD35CBDFEB1363EB73BBFE5930EA",
+        "data_hash": "66365380CC76BDD9D24813089453A669D86101D40CEB160EA01253D78A086147",
+        "validators_hash": "26A1C51AA4669CC5E46E5222CD985E2DAED99D72E3EF44872AF31AB4E269A3E1",
+        "next_validators_hash": "26A1C51AA4669CC5E46E5222CD985E2DAED99D72E3EF44872AF31AB4E269A3E1",
+        "consensus_hash": "048091BC7DDC283F77BFBF91D73C44DA58C3DF8A9CBC867405D8B7F3DAADA22F",
+        "app_hash": "3870ABC2A4AD8C8C76F98A22B0AFF02F0FDF3F4A41A049E32E85ACC28DDB22A3",
+        "last_results_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "evidence_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "proposer_address": "48A65B268832A6E8041E15A99B749E4553A5F6CB"
+      },
+      "data": {
+        "txs": [
+          "CrMBCp0BChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEn0KP3hpb24xazdnZHM5ejZ2a2tjbHFqNXpyeWpsOXE4NWp4cXFjaHUwa3B5OGNqY3R2Z214anFueDZrczcwcmcwYRIreGlvbjFoZHp2ejh5NXp4cWY5eGhwMjA2dzZ6ZW5xZTNsNXV0OWFlbGtnZRoNCgV1eGlvbhIEMTAwMRIRYWEgZml4ZWQtdjMyIHBvc3QSYwpNCkMKHS9hYnN0cmFjdGFjY291bnQudjEuTmlsUHViS2V5EiIKILeQ2BRaZa2PglQQyS+UB6SMAGL8fYJD4lhbEbNIEzatEgQKAggBGAESEgoMCgV1eGlvbhIDMjUwEL6eDxpBAJB/A2fbYaKx0I7WhYwjZYvNVfY0DRJwAGcGNHSp/r9sNtbMULpgrWhIu8f03vq29MYBzQcCZqAc62hZI+2GKX0="
+        ]
+      },
+      "evidence": {
+        "evidence": []
+      },
+      "last_commit": {
+        "height": "289",
+        "round": 0,
+        "block_id": {
+          "hash": "5217EA6D38DACCE6CF5678CE935121C097F9653CFD06EC6DEAB573816D4A3073",
+          "parts": {
+            "total": 1,
+            "hash": "FC0A944C5561011DC470323FAAD1F88C2ABE8E61A3E3D39ED4C39FF6CC44AE49"
+          }
+        },
+        "signatures": [
+          {
+            "block_id_flag": 2,
+            "validator_address": "48A65B268832A6E8041E15A99B749E4553A5F6CB",
+            "timestamp": "2026-10-21T15:28:27.722754077Z",
+            "signature": "uN6JyhMLD7ZnCwyLm+X60dIw+lwk4xsmyEvTcKoeb+7mPcfK4dzUHH2hGexykQHZeyGCiuXjoX5cn9loNdT2Cg=="
+          }
+        ]
+      }
+    }
+  },
+  "block_results": {
+    "height": "290",
+    "txs_results": [
+      {
+        "code": 0,
+        "data": "EiYKJC9jb3Ntb3MuYmFuay52MWJldGExLk1zZ1NlbmRSZXNwb25zZQ==",
+        "log": "",
+        "info": "",
+        "gas_wanted": "249662",
+        "gas_used": "206442",
+        "events": [
+          {
+            "type": "coin_spent",
+            "attributes": [
+              {
+                "key": "spender",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "250uxion",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "coin_received",
+            "attributes": [
+              {
+                "key": "receiver",
+                "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "250uxion",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "transfer",
+            "attributes": [
+              {
+                "key": "recipient",
+                "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+                "index": true
+              },
+              {
+                "key": "sender",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "250uxion",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "sender",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "tx",
+            "attributes": [
+              {
+                "key": "fee",
+                "value": "250uxion",
+                "index": true
+              },
+              {
+                "key": "fee_payer",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "tx",
+            "attributes": [
+              {
+                "key": "acc_seq",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a/1",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "tx",
+            "attributes": [
+              {
+                "key": "signature",
+                "value": "AJB/A2fbYaKx0I7WhYwjZYvNVfY0DRJwAGcGNHSp/r9sNtbMULpgrWhIu8f03vq29MYBzQcCZqAc62hZI+2GKX0=",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "before_tx",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "before_tx",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "action",
+                "value": "/cosmos.bank.v1beta1.MsgSend",
+                "index": true
+              },
+              {
+                "key": "sender",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "module",
+                "value": "bank",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "coin_spent",
+            "attributes": [
+              {
+                "key": "spender",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "1001uxion",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "coin_received",
+            "attributes": [
+              {
+                "key": "receiver",
+                "value": "xion1hdzvz8y5zxqf9xhp206w6zenqe3l5ut9aelkge",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "1001uxion",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "transfer",
+            "attributes": [
+              {
+                "key": "recipient",
+                "value": "xion1hdzvz8y5zxqf9xhp206w6zenqe3l5ut9aelkge",
+                "index": true
+              },
+              {
+                "key": "sender",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "amount",
+                "value": "1001uxion",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "sender",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "msg_index",
+                "value": "0",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "after_tx",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "sudo",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "xion1k7gds9z6vkkclqj5zryjl9q85jxqqchu0kpy8cjctvgmxjqnx6ks70rg0a",
+                "index": true
+              },
+              {
+                "key": "method",
+                "value": "after_tx",
+                "index": true
+              }
+            ]
+          }
+        ],
+        "codespace": ""
+      }
+    ],
+    "finalize_block_events": [
+      {
+        "type": "coin_received",
+        "attributes": [
+          {
+            "key": "receiver",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coinbase",
+        "attributes": [
+          {
+            "key": "minter",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_spent",
+        "attributes": [
+          {
+            "key": "spender",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_received",
+        "attributes": [
+          {
+            "key": "receiver",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "transfer",
+        "attributes": [
+          {
+            "key": "recipient",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "sender",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "attributes": [
+          {
+            "key": "sender",
+            "value": "xion1m3h30wlvsf8llruxtpukdvsy0km2kum82ca63t",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "mint",
+        "attributes": [
+          {
+            "key": "bonded_ratio",
+            "value": "0.000049999999987726",
+            "index": true
+          },
+          {
+            "key": "inflation",
+            "value": "0.130005972758791300",
+            "index": true
+          },
+          {
+            "key": "annual_provisions",
+            "value": "1300059727.587913000000000000",
+            "index": true
+          },
+          {
+            "key": "needed_amount",
+            "value": "205",
+            "index": true
+          },
+          {
+            "key": "minted_amount",
+            "value": "205",
+            "index": true
+          },
+          {
+            "key": "collected_amount",
+            "value": "0",
+            "index": true
+          },
+          {
+            "key": "burned_amount",
+            "value": "0",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_spent",
+        "attributes": [
+          {
+            "key": "spender",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "coin_received",
+        "attributes": [
+          {
+            "key": "receiver",
+            "value": "xion1jv65s3grqf6v6jl3dp4t6c9t9rk99cd89k77l5",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "transfer",
+        "attributes": [
+          {
+            "key": "recipient",
+            "value": "xion1jv65s3grqf6v6jl3dp4t6c9t9rk99cd89k77l5",
+            "index": true
+          },
+          {
+            "key": "sender",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "amount",
+            "value": "205uxion",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "attributes": [
+          {
+            "key": "sender",
+            "value": "xion17xpfvakm2amg962yls6f84z3kell8c5ljsezak",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "commission",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "20.090000000000000000uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1cdca659hjtvg2xsjvfcw52chhyucxe82ueeqjj",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "rewards",
+        "attributes": [
+          {
+            "key": "amount",
+            "value": "200.900000000000000000uxion",
+            "index": true
+          },
+          {
+            "key": "validator",
+            "value": "xionvaloper1cdca659hjtvg2xsjvfcw52chhyucxe82ueeqjj",
+            "index": true
+          },
+          {
+            "key": "mode",
+            "value": "BeginBlock",
+            "index": true
+          }
+        ]
+      }
+    ],
+    "validator_updates": null,
+    "consensus_param_updates": {
+      "block": {
+        "max_bytes": "22020096",
+        "max_gas": "-1"
+      },
+      "evidence": {
+        "max_age_num_blocks": "100000",
+        "max_age_duration": "172800000000000",
+        "max_bytes": "1048576"
+      },
+      "validator": {
+        "pub_key_types": [
+          "ed25519"
+        ]
+      },
+      "version": {},
+      "abci": {}
+    },
+    "app_hash": "sOMlJeuLnV2ByAkGWlTrIT8AmYmfCFnWe4j5bl8Svs4="
+  }
+}

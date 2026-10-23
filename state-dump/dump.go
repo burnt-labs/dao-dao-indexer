@@ -3,11 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"cosmossdk.io/log"
@@ -38,50 +39,174 @@ type (
 )
 
 func main() {
-	args := os.Args
-	if len(args) < 4 {
-		fmt.Println("Usage: dump <home_dir> <output> <store_name[:key_prefix_byte_value]> [address(es)]")
+	// Define command line flags
+	homeDir := flag.String("home", "", "Home directory for chain data (required)")
+	output := flag.String("output", "", "Output file path (required)")
+	storeName := flag.String("store", "", "Store name (e.g., wasm, bank) (required)")
+	startAddr := flag.String("start-addr", "", "Start address for range iteration (bech32 address)")
+	endAddr := flag.String("end-addr", "", "End address for range iteration (bech32 address)")
+	startPrefixHex := flag.String("start-prefix", "", "Start key as hex string (e.g., 03abcd)")
+	endPrefixHex := flag.String("end-prefix", "", "End key as hex string (e.g., 03abce)")
+	autoEnd := flag.Bool("auto-end", true, "Auto-calculate end key from start (set to false to iterate to end of store)")
+	addressesStr := flag.String("addresses", "", "Comma-separated list of bech32 addresses to filter by")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: dump [options]\n\n")
+		fmt.Fprintf(os.Stderr, "Dumps state from a Cosmos SDK chain database.\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nExamples:\n")
+		fmt.Fprintf(os.Stderr, "  # Dump entire wasm store\n")
+		fmt.Fprintf(os.Stderr, "  dump -home /path/to/.chain -output dump.json -store wasm\n\n")
+		fmt.Fprintf(os.Stderr, "  # Dump single contract state (fast range query)\n")
+		fmt.Fprintf(os.Stderr, "  dump -home /path/to/.chain -output dump.json -store wasm -start-addr <contract_address>\n\n")
+		fmt.Fprintf(os.Stderr, "  # Dump from start address to end of store (disable auto-end)\n")
+		fmt.Fprintf(os.Stderr, "  dump -home /path/to/.chain -output dump.json -store wasm -start-addr <contract_address> -auto-end=false\n\n")
+		fmt.Fprintf(os.Stderr, "  # Dump specific addresses (filters all keys)\n")
+		fmt.Fprintf(os.Stderr, "  dump -home /path/to/.chain -output dump.json -store wasm -addresses addr1,addr2,addr3\n\n")
+		fmt.Fprintf(os.Stderr, "  # Combine range query with address filter\n")
+		fmt.Fprintf(os.Stderr, "  dump -home /path/to/.chain -output dump.json -store wasm -start-addr <addr1> -end-addr <addr2> -addresses addr1,addr2\n\n")
+		fmt.Fprintf(os.Stderr, "  # Dump using hex prefix (auto-calculates end)\n")
+		fmt.Fprintf(os.Stderr, "  dump -home /path/to/.chain -output dump.json -store wasm -start-prefix 03\n\n")
+		fmt.Fprintf(os.Stderr, "  # Dump using explicit hex start/end range\n")
+		fmt.Fprintf(os.Stderr, "  dump -home /path/to/.chain -output dump.json -store wasm -start-prefix 03abcd -end-prefix 03abce\n")
+	}
+
+	flag.Parse()
+
+	// Validate required flags
+	if *homeDir == "" {
+		fmt.Fprintln(os.Stderr, "Error: -home is required")
+		flag.Usage()
+		os.Exit(1)
+	}
+	if *output == "" {
+		fmt.Fprintln(os.Stderr, "Error: -output is required")
+		flag.Usage()
+		os.Exit(1)
+	}
+	if *storeName == "" {
+		fmt.Fprintln(os.Stderr, "Error: -store is required")
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	home_dir := args[1]
-	dataDir := filepath.Join(home_dir, "data")
+	// Validate mutually exclusive flags
+	hasAddrRange := *startAddr != "" || *endAddr != ""
+	hasHexRange := *startPrefixHex != "" || *endPrefixHex != ""
 
-	output := args[2]
-
-	storeNameParts := strings.SplitN(args[3], ":", 2)
-	storeName := storeNameParts[0]
-
-	// parse key prefix as a number (supports both decimal and hex strings) and
-	// then convert to a single byte
-	keyPrefix := []byte{}
-	if len(storeNameParts) > 1 && storeNameParts[1] != "" {
-		keyPrefixInt, err := strconv.ParseInt(storeNameParts[1], 0, 8)
-		if err != nil {
-			panic(err)
-		}
-		keyPrefix = []byte{byte(keyPrefixInt)}
+	if hasAddrRange && hasHexRange {
+		fmt.Fprintln(os.Stderr, "Error: -start-addr/-end-addr and -start-prefix/-end-prefix are mutually exclusive")
+		flag.Usage()
+		os.Exit(1)
 	}
 
-	var addressesBech32Data [][]byte
-	if len(args) > 4 {
-		// split comma-separated list of addresses
-		addresses := strings.Split(args[4], ",")
+	dataDir := filepath.Join(*homeDir, "data")
 
+	// Parse start/end keys for range iteration
+	var startKey []byte = nil
+	var endKey []byte = nil
+
+	// Parse hex start/end prefixes
+	if *startPrefixHex != "" {
+		hexStr := strings.TrimPrefix(*startPrefixHex, "0x")
+		var err error
+		startKey, err = hex.DecodeString(hexStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error decoding start-prefix hex: %v\n", err)
+			os.Exit(1)
+		}
+
+		// If no end prefix specified and auto-end is enabled, calculate end key
+		if *endPrefixHex == "" && *autoEnd {
+			endKey = make([]byte, len(startKey))
+			copy(endKey, startKey)
+			for i := len(endKey) - 1; i >= 0; i-- {
+				if endKey[i] < 255 {
+					endKey[i]++
+					break
+				}
+				endKey[i] = 0
+				// If we've wrapped all bytes to 0, the end key should be nil (iterate to end)
+				if i == 0 {
+					endKey = nil
+				}
+			}
+		}
+	}
+
+	if *endPrefixHex != "" {
+		hexStr := strings.TrimPrefix(*endPrefixHex, "0x")
+		var err error
+		endKey, err = hex.DecodeString(hexStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error decoding end-prefix hex: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if *startAddr != "" {
+		_, bech32Data, err := bech32.DecodeToBase256(*startAddr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error decoding start address: %v\n", err)
+			os.Exit(1)
+		}
+
+		// ContractStorePrefix (0x03) || contractAddressBytes
+		startKey = append(startKey, byte(0x03))
+		startKey = append(startKey, bech32Data...)
+
+		// If no end address specified and auto-end is enabled, calculate end key as next key after start address
+		if *endAddr == "" && *autoEnd {
+			endKey = append(endKey, byte(0x03))
+			// Copy and increment bech32Data by 1
+			incrementedData := make([]byte, len(bech32Data))
+			copy(incrementedData, bech32Data)
+			for i := len(incrementedData) - 1; i >= 0; i-- {
+				if incrementedData[i] < 255 {
+					incrementedData[i]++
+					break
+				}
+				incrementedData[i] = 0
+			}
+			endKey = append(endKey, incrementedData...)
+		}
+	}
+
+	if *endAddr != "" {
+		_, bech32Data, err := bech32.DecodeToBase256(*endAddr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error decoding end address: %v\n", err)
+			os.Exit(1)
+		}
+
+		endKey = nil // Reset in case it was set from start address
+		endKey = append(endKey, byte(0x03))
+		endKey = append(endKey, bech32Data...)
+	}
+
+	// Parse addresses to filter by
+	var addressesBech32Data [][]byte
+	if *addressesStr != "" {
+		addresses := strings.Split(*addressesStr, ",")
 		for _, address := range addresses {
+			address = strings.TrimSpace(address)
+			if address == "" {
+				continue
+			}
 			_, bech32Data, err := bech32.DecodeToBase256(address)
 			if err != nil {
-				panic(err)
+				fmt.Fprintf(os.Stderr, "Error decoding address %s: %v\n", address, err)
+				os.Exit(1)
 			}
-
 			addressesBech32Data = append(addressesBech32Data, bech32Data)
 		}
 	}
 
 	fmt.Printf("Loading data from %s...\n", dataDir)
-	fmt.Printf("Writing to %s...\n", output)
+	fmt.Printf("Writing to %s...\n", *output)
 
-	out, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY, 0644)
+	out, err := os.OpenFile(*output, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -96,13 +221,19 @@ func main() {
 	latestHeight := rootmulti.GetLatestVersion(db)
 	fmt.Printf("Latest height: %d\n", latestHeight)
 
-	storeKey := types.NewKVStoreKey(storeName)
+	storeKey := types.NewKVStoreKey(*storeName)
 	ms := rootmulti.NewStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
 	ms.MountStoreWithDB(storeKey, types.StoreTypeIAVL, nil)
 
-	fmt.Printf("Loading %s store...\n", storeName)
-	if len(keyPrefix) > 0 {
-		fmt.Printf("Filtering by key prefix: %02x\n", keyPrefix)
+	fmt.Printf("Loading %s store...\n", *storeName)
+	if startKey != nil {
+		fmt.Printf("Start key: %x\n", startKey)
+	}
+	if endKey != nil {
+		fmt.Printf("End key: %x\n", endKey)
+	}
+	if len(addressesBech32Data) > 0 {
+		fmt.Printf("Filtering by %d address(es)\n", len(addressesBech32Data))
 	}
 
 	err = ms.LoadLatestVersion()
@@ -117,7 +248,7 @@ func main() {
 
 	fmt.Println("Iterating...")
 
-	iter := store.Iterator(nil, nil)
+	iter := store.Iterator(startKey, endKey)
 
 	// Dump all keys as write operations.
 	exported := 0
@@ -130,17 +261,10 @@ func main() {
 			fmt.Printf("Processed %d keys\n", processed)
 		}
 
-		// Validate with key prefix if provided.
-		if len(keyPrefix) > 0 {
-			if !bytes.HasPrefix(key, keyPrefix) {
-				continue
-			}
-		}
-
 		// Make sure key is for the given address. Different stores have the address
 		// in a different position.
 		if len(addressesBech32Data) > 0 {
-			if storeName == "wasm" {
+			if *storeName == "wasm" {
 				found := false
 				for _, addressBech32Data := range addressesBech32Data {
 					// Terra Classic has an extra byte before the address, so check
@@ -154,7 +278,7 @@ func main() {
 				if !found {
 					continue
 				}
-			} else if storeName == "bank" {
+			} else if *storeName == "bank" {
 				found := false
 				for _, addressBech32Data := range addressesBech32Data {
 					if len(key) > 2 && bytes.HasPrefix(key[2:], addressBech32Data) {
@@ -177,7 +301,7 @@ func main() {
 			Metadata: Metadata{
 				BlockHeight: latestHeight,
 				TxHash:      "",
-				StoreName:   storeName,
+				StoreName:   *storeName,
 			},
 		}
 
