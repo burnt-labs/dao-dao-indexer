@@ -10,6 +10,7 @@ import {
   recoverContractState,
 } from '@/services/contract-state-recovery'
 import { Config } from '@/types'
+import { connectCosmWasmClient } from '@/utils/cometClient'
 
 const DEFAULT_PAGE_LIMIT = 1000
 const MAX_PAGE_LIMIT = 5000
@@ -171,7 +172,7 @@ export const createRecoverContractState =
 
 export const recoverContractStateHandler = createRecoverContractState({
   loadConfig: () => ConfigManager.load(),
-  connect: CosmWasmClient.connect,
+  connect: connectCosmWasmClient,
   recover: recoverContractState,
   fetchPage: fetchContractStatePage,
   getContractInfo: getRecoveryContractInfo,

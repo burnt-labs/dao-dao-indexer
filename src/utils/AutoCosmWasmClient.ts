@@ -3,6 +3,7 @@ import { QueryClient, createProtobufRpcClient } from '@cosmjs/stargate'
 import { QueryContractInfoRequest } from 'cosmjs-types/cosmwasm/wasm/v1/query'
 import { ContractInfo } from 'cosmjs-types/cosmwasm/wasm/v1/types'
 
+import { connectCosmWasmClient } from './cometClient'
 import { retry } from './misc'
 
 /**
@@ -64,7 +65,7 @@ export class AutoCosmWasmClient {
 
     // If the client is not connected, attempt to create it.
     if (!this._cosmWasmClient) {
-      this._cosmWasmClient = await CosmWasmClient.connect(this.rpc).catch(
+      this._cosmWasmClient = await connectCosmWasmClient(this.rpc).catch(
         (err) => {
           console.error(
             `Failed to create CosmWasm client for RPC ${this.rpc}.`,

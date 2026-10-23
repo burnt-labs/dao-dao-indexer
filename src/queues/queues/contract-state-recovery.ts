@@ -1,4 +1,3 @@
-import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
 import { Job, Queue } from 'bullmq'
 
 import { fetchContractStatePage } from '@/services/contract-state-dump'
@@ -6,6 +5,7 @@ import {
   getRecoveryContractInfo,
   recoverContractState,
 } from '@/services/contract-state-recovery'
+import { connectCosmWasmClient } from '@/utils/cometClient'
 
 import { BaseQueue } from '../base'
 import { closeBullQueue, getBullQueue, getBullQueueEvents } from '../connection'
@@ -53,7 +53,7 @@ export class ContractStateRecoveryQueue extends BaseQueue<ContractStateRecoveryQ
       throw new Error(`${rpc} RPC is not configured`)
     }
 
-    const client = await CosmWasmClient.connect(rpcUrl)
+    const client = await connectCosmWasmClient(rpcUrl)
     try {
       const [contractInfo, block] = await Promise.all([
         getRecoveryContractInfo({ address, client }),
