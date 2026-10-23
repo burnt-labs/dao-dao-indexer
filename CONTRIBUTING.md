@@ -9,7 +9,7 @@ Thank you for your interest in contributing to Argus! This document provides gui
 - Check if the issue already exists in the [GitHub Issues](https://github.com/burnt-labs/dao-dao-indexer/issues)
 - If not, create a new issue with a clear title and description
 - Include steps to reproduce, expected behavior, and actual behavior
-- Add relevant labels and screenshots if applicable
+- Include screenshots if applicable, and mention relevant components (labels are typically added by maintainers)
 
 ### Pull Requests
 
