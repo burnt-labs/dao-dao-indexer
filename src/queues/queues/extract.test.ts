@@ -40,9 +40,12 @@ describe('ExtractQueue', () => {
       }),
     ])
 
-    mockExtractor = vi.fn(() => ({
-      extract: mockExtract,
-    }))
+    // vitest 4 only treats a mock as constructable when its implementation
+    // is written with `function` or `class` syntax, and the queue calls
+    // `new Extractor(...)`.
+    mockExtractor = vi.fn(function () {
+      return { extract: mockExtract }
+    })
 
     // Mock extractors
     vi.spyOn(listenerModule, 'getExtractorMap').mockImplementation(
@@ -280,9 +283,9 @@ describe('ExtractQueue', () => {
     })
 
     it('should process multiple extractors', async () => {
-      const secondExtractor = vi.fn(() => ({
-        extract: mockExtract,
-      }))
+      const secondExtractor = vi.fn(function () {
+        return { extract: mockExtract }
+      })
 
       mockGetExtractorMap.mockImplementation(() => ({
         test: mockExtractor,
