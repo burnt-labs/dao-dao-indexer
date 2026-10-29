@@ -41,14 +41,24 @@ import { Computation, ComputationDependency } from './models'
 // computation's validity by checking the range up to the latest changed block,
 // using the default behavior of starting from the `latestBlockHeightValid`.
 export const updateComputationValidityDependentOnChanges = async (
-  dependableEvents: DependableEventModel[]
+  _dependableEvents: DependableEventModel[]
 ): Promise<{
   updated: number
   destroyed: number
 }> => {
   // DISABLE FOR NOW SINCE THIS IS TOO INEFFICIENT
   return { updated: 0, destroyed: 0 }
+}
 
+// The body of `updateComputationValidityDependentOnChanges`, which is disabled
+// on the export path. Backfills that write events below already-cached blocks
+// call this directly, once per bounded set of changes.
+export const invalidateComputationsDependentOnChanges = async (
+  dependableEvents: DependableEventModel[]
+): Promise<{
+  updated: number
+  destroyed: number
+}> => {
   if (!dependableEvents.length) {
     return { updated: 0, destroyed: 0 }
   }

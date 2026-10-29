@@ -39,6 +39,7 @@
     "listen:prod": "npm install && npm run build; pm2 delete all; npm run with-infisical -- npm run db:migrate:data && pm2 start ecosystem.config.js --only listener,workers,workers-bg && pm2 save",
     "account-webhooks": "node dist/scripts/accountWebhooks.js",
     "transform": "node dist/scripts/transform.js",
+    "import-contract-state": "node dist/scripts/importContractState.js",
     "sync-extractors": "node dist/scripts/syncExtractors.js",
     "pre-compute": "node dist/scripts/preCompute.js",
     "revalidate": "node dist/scripts/revalidate.js",
