@@ -13,7 +13,12 @@ import { CONTRACT_STATE_RECOVERY_DELAY_MS } from '@/queues/queues/contract-state
 import { WasmCodeService } from '@/services'
 import { transformParsedStateEvents } from '@/transformers'
 import { Handler, HandlerMaker, WasmExportData } from '@/types'
-import { dbKeyForKeys, getContractInfo, retry } from '@/utils'
+import {
+  dbKeyForKeys,
+  getContractInfo,
+  getExcludedContractAddresses,
+  retry,
+} from '@/utils'
 
 const STORE_NAME = 'wasm'
 const DEFAULT_CONTRACT_BYTE_LENGTH = 32
@@ -78,10 +83,16 @@ const CONTRACT_STATE_EVENT_KEY_ALLOWLIST: Partial<
 }
 
 export const wasm: HandlerMaker<WasmExportData> = async ({
-  config: { bech32Prefix, onlyExportKnownCodeIds },
+  config,
   sendWebhooks,
   autoCosmWasmClient,
 }) => {
+  const { bech32Prefix, onlyExportKnownCodeIds } = config
+
+  // Contracts excluded from indexing by config. Their events are dropped in
+  // `match`, before anything is persisted, looked up or queued.
+  const excludedContractAddresses = getExcludedContractAddresses(config)
+
   const chainId =
     autoCosmWasmClient.chainId || (await State.getSingleton())?.chainId
   if (!chainId) {
@@ -190,6 +201,12 @@ export const wasm: HandlerMaker<WasmExportData> = async ({
         contractAddressOffset + contractByteLength
       )
     )
+
+    // Ignore excluded contracts entirely (state and contract info).
+    if (excludedContractAddresses.has(contractAddress)) {
+      return
+    }
+
     // Convert key to comma-separated list of bytes. See explanation in `Event`
     // model for more information.
     const key = keyData
@@ -272,6 +289,23 @@ export const wasm: HandlerMaker<WasmExportData> = async ({
   }
 
   const process: Handler<WasmExportData>['process'] = async (events) => {
+    // Export jobs queued (or retried) before a contract was excluded were
+    // matched without the exclusion and are not matched again, so drop
+    // excluded contracts here too, before anything is persisted or queued.
+    if (excludedContractAddresses.size > 0) {
+      events = events.filter(
+        (event) =>
+          !excludedContractAddresses.has(
+            event.type === 'state'
+              ? event.data.contractAddress
+              : event.data.address
+          )
+      )
+      if (!events.length) {
+        return []
+      }
+    }
+
     // Save blocks from events.
     await Block.createMany(
       [...new Set(events.map((e) => e.data.blockHeight))].map((height) => ({

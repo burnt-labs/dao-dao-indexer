@@ -9,8 +9,26 @@ import {
   ExtractorHandler,
   ExtractorSyncEnv,
 } from '@/types'
+import { getExcludedContractAddresses } from '@/utils'
 
-import { getDataSources } from '../sources'
+import {
+  IndexedWasmEventDataSource,
+  WasmEventDataSource,
+  WasmInstantiateOrMigrateDataSource,
+  getDataSources,
+} from '../sources'
+
+/**
+ * Data sources whose data `address` is the contract address that emitted or
+ * owns the data, used to skip contracts excluded from indexing by config.
+ */
+const CONTRACT_ADDRESS_DATA_SOURCES = new Set([
+  // Fork-only source (used by the Xion deposit webhook extractor); its
+  // `address` is the contract that emitted the wasm event.
+  IndexedWasmEventDataSource.type,
+  WasmEventDataSource.type,
+  WasmInstantiateOrMigrateDataSource.type,
+])
 
 export abstract class Extractor {
   /**
@@ -108,6 +126,21 @@ export abstract class Extractor {
   async extract(
     data: ExtractorHandleableData[]
   ): Promise<DependableEventModel[]> {
+    // Skip data from contracts excluded from indexing by config, before any
+    // handler runs, so they produce no queries or extractions.
+    const excludedContractAddresses = getExcludedContractAddresses(
+      this.env.config
+    )
+    if (excludedContractAddresses.size > 0) {
+      data = data.filter(
+        ({ source, data }) =>
+          !CONTRACT_ADDRESS_DATA_SOURCES.has(source) ||
+          !excludedContractAddresses.has(
+            (data as { address?: unknown } | undefined)?.address as string
+          )
+      )
+    }
+
     return (
       await Promise.all(
         data.map(async ({ handler: _handler, data }) => {

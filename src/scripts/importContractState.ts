@@ -37,7 +37,10 @@ import {
   verifyRecord,
 } from '@/services/contract-state-import'
 import { WasmCodeService } from '@/services/wasm-codes'
-import { XION_ACCOUNT_CODE_IDS_KEY } from '@/utils'
+import {
+  XION_ACCOUNT_CODE_IDS_KEY,
+  getExcludedContractAddresses,
+} from '@/utils'
 
 const main = async () => {
   const program = new Command()
@@ -59,7 +62,7 @@ const main = async () => {
     verifyOnly = false,
   } = program.opts()
 
-  ConfigManager.load(_config)
+  const config = ConfigManager.load(_config)
   const sequelize = await loadDb()
   const wasmCodeService = await WasmCodeService.setUpInstance()
   await wasmCodeService.reloadWasmCodeIdsFromDB()
@@ -71,7 +74,7 @@ const main = async () => {
       `export ${file}\n  sha256 ${sha256}\n  chain ${data.chainId}, ${data.count} records, export height ${data.exportHeight}`
     )
 
-    const problems = validateExport(data)
+    const problems = validateExport(data, getExcludedContractAddresses(config))
     if (problems.length) {
       throw new Error(`invalid export:\n  ${problems.join('\n  ')}`)
     }
