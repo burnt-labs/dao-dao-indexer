@@ -80,9 +80,14 @@ export const recordSha256 = ({ sha256: _, ...record }: ContractStateRecord) =>
 
 /**
  * Validate the export's structure and per-record hashes. Returns a list of
- * problems; empty means valid.
+ * problems; empty means valid. Records for contracts excluded from indexing by
+ * the `excludedContractAddresses` config option are problems too, matching the
+ * recovery route, which refuses them.
  */
-export const validateExport = (data: ContractStateExport): string[] => {
+export const validateExport = (
+  data: ContractStateExport,
+  excludedContractAddresses: ReadonlySet<string> = new Set()
+): string[] => {
   const problems: string[] = []
   if (data.format !== EXPORT_FORMAT) {
     problems.push(`unknown format ${data.format}, expected ${EXPORT_FORMAT}`)
@@ -104,6 +109,11 @@ export const validateExport = (data: ContractStateExport): string[] => {
       problems.push(`${record.address}: duplicate record`)
     }
     seen.add(record.address)
+    if (excludedContractAddresses.has(record.address)) {
+      problems.push(
+        `${record.address}: excluded by excludedContractAddresses config`
+      )
+    }
     if (recordSha256(record) !== record.sha256) {
       problems.push(`${record.address}: sha256 mismatch`)
     }

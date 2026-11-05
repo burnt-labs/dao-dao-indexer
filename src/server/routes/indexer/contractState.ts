@@ -10,6 +10,7 @@ import {
   recoverContractState,
 } from '@/services/contract-state-recovery'
 import { Config } from '@/types'
+import { isContractAddressExcluded } from '@/utils'
 import { connectCosmWasmClient } from '@/utils/cometClient'
 
 const DEFAULT_PAGE_LIMIT = 1000
@@ -92,6 +93,15 @@ export const createRecoverContractState =
     } catch {
       ctx.status = 400
       ctx.body = { error: 'invalid contract address' }
+      return
+    }
+
+    if (isContractAddressExcluded(config, address)) {
+      ctx.status = 403
+      ctx.body = {
+        error:
+          'contract is excluded from indexing by excludedContractAddresses config',
+      }
       return
     }
 

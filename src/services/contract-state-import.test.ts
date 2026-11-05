@@ -121,6 +121,14 @@ describe('validateExport', () => {
     expect(validateExport(makeExport([makeRecord()]))).toEqual([])
   })
 
+  it('rejects a record for a contract excluded by config', () => {
+    const export_ = makeExport([makeRecord()])
+    expect(validateExport(export_, new Set(['xion1imported']))).toEqual([
+      'xion1imported: excluded by excludedContractAddresses config',
+    ])
+    expect(validateExport(export_, new Set(['xion1other']))).toEqual([])
+  })
+
   it('rejects a record whose content no longer matches its sha256', () => {
     const record = makeRecord()
     record.snapshots[0].entries[0].value = b64({
