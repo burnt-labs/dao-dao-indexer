@@ -1,0 +1,45 @@
+{
+  "categories": {},
+  "events": 0,
+  "funnel": {
+    "already_posted": 0,
+    "by_severity": {
+      "posted": {
+        "medium": 2
+      },
+      "raised": {
+        "medium": 2
+      }
+    },
+    "duration_s": 365.4,
+    "killed": 0,
+    "killed_by_stage": {
+      "dismissed": 0,
+      "gated": 0,
+      "merged": 0,
+      "unanchored": 0,
+      "unruled": 0
+    },
+    "outcomes": {
+      "posted": 3
+    },
+    "posted": 2,
+    "raised": 2,
+    "refuted": 0,
+    "reviews": 3,
+    "tokens": {
+      "billed_input": 1074190,
+      "cache_read": 96768,
+      "cache_write": 0,
+      "input": 1074190,
+      "output": 8748
+    },
+    "tokens_per_posted_finding": {
+      "billed_input": 537095,
+      "output": 4374
+    },
+    "window_days": 30
+  },
+  "generated_at": "2026-11-17T02:25:15+00:00",
+  "users": {}
+}
