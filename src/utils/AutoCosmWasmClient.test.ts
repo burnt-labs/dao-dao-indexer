@@ -1,8 +1,16 @@
 import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
-import { AutoCosmWasmClient } from './AutoCosmWasmClient'
-import { connectCosmWasmClient } from './cometClient'
+import type { AutoCosmWasmClient as AutoCosmWasmClientType } from './AutoCosmWasmClient'
+import type { connectCosmWasmClient as connectCosmWasmClientType } from './cometClient'
 
 // The fork connects through connectCosmWasmClient, which picks the CometBFT
 // adaptor from the node version, instead of CosmWasmClient.connect.
@@ -10,6 +18,17 @@ vi.mock('./cometClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./cometClient')>()),
   connectCosmWasmClient: vi.fn(),
 }))
+
+// The test setup file imports '@/utils' before this file registers the mock
+// above, so AutoCosmWasmClient is already loaded with the real cometClient.
+// Reload both modules so AutoCosmWasmClient uses the mocked connect function.
+let AutoCosmWasmClient: typeof AutoCosmWasmClientType
+let connectCosmWasmClient: typeof connectCosmWasmClientType
+beforeAll(async () => {
+  vi.resetModules()
+  ;({ AutoCosmWasmClient } = await import('./AutoCosmWasmClient'))
+  ;({ connectCosmWasmClient } = await import('./cometClient'))
+})
 
 describe('AutoCosmWasmClient', () => {
   const rpc = 'http://localhost:26657'
@@ -24,9 +43,9 @@ describe('AutoCosmWasmClient', () => {
     maxDurationMs: 5_000,
   }
 
-  let clients: AutoCosmWasmClient[] = []
+  let clients: AutoCosmWasmClientType[] = []
   const createClient = (
-    ...params: ConstructorParameters<typeof AutoCosmWasmClient>
+    ...params: ConstructorParameters<typeof AutoCosmWasmClientType>
   ) => {
     const client = new AutoCosmWasmClient(...params)
     clients.push(client)
