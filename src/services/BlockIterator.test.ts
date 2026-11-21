@@ -12,7 +12,12 @@ import WS from 'vitest-websocket-mock'
 import { AutoCosmWasmClient } from '@/utils'
 import * as utils from '@/utils'
 
-import { BlockIterator, BlockIteratorErrorType, TxData } from './BlockIterator'
+import {
+  BlockIterator,
+  BlockIteratorErrorType,
+  TransientRetryExhaustedError,
+  TxData,
+} from './BlockIterator'
 
 describe('BlockIterator', () => {
   let mockAutoCosmWasmClient: AutoCosmWasmClient
@@ -522,6 +527,602 @@ describe('BlockIterator', () => {
 
       // Should process blocks 100, 101, 102, 103
       expect(blockHeights).toEqual([100, 101, 102, 103])
+    })
+  })
+
+  describe('transient RPC errors', () => {
+    // Short delays so tests run quickly.
+    const fastRetry = {
+      initialDelayMs: 5,
+      maxDelayMs: 20,
+      warnAfterMs: 60_000,
+      warnIntervalMs: 60_000,
+      maxDurationMs: 10_000,
+    }
+
+    const createIterator = (
+      transientRetry: Partial<typeof fastRetry> = {},
+      endHeight = 102
+    ) =>
+      new BlockIterator({
+        rpcUrl: 'http://localhost:26657',
+        autoCosmWasmClient: mockAutoCosmWasmClient,
+        startHeight: 100,
+        endHeight,
+        bufferSize: 2,
+        transientRetry: { ...fastRetry, ...transientRetry },
+      })
+
+    const runToEnd = async (
+      iterator: BlockIterator,
+      callbacks: Parameters<BlockIterator['iterate']>[0]
+    ) => {
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate(callbacks)
+      await sendBlockPastEndHeight()
+      return iteratePromise
+    }
+
+    // Fail block results for `height` with `error` the first `times` calls.
+    const failBlockResults = (height: number, times: number, error: Error) => {
+      let failures = 0
+      mockGetBlockResults.mockImplementation((h: number) => {
+        if (h === height && failures < times) {
+          failures++
+          return Promise.reject(error)
+        }
+        return Promise.resolve(createMockBlockResults(h))
+      })
+      return () => failures
+    }
+
+    const couldNotFindResults = (height: number) =>
+      new Error(
+        JSON.stringify({
+          code: -32603,
+          message: 'Internal error',
+          data: `could not find results for height #${height}`,
+        })
+      )
+
+    it('retries "could not find results" past the 30-attempt limit, then processes the block', async () => {
+      // More failures than the old 30-attempt limit allowed.
+      const failures = failBlockResults(101, 40, couldNotFindResults(101))
+      const onBlock = vi.fn()
+      const onError = vi.fn()
+
+      await runToEnd(createIterator(), { onBlock, onError })
+
+      expect(failures()).toBe(40)
+      expect(onError).not.toHaveBeenCalled()
+      expect(onBlock.mock.calls.map(([block]) => block.height)).toEqual([
+        100, 101, 102,
+      ])
+    })
+
+    it.each([
+      'Bad status on response: 502',
+      'Bad status on response: 503',
+      'Bad status on response: 504',
+      'Request failed with status code 500',
+      'socket hang up',
+      'connect ETIMEDOUT 1.2.3.4:443',
+      'read ECONNRESET',
+    ])('retries "%s", then processes the block', async (message) => {
+      failBlockResults(101, 3, new Error(message))
+      const onBlock = vi.fn()
+      const onError = vi.fn()
+
+      await runToEnd(createIterator(), { onBlock, onError })
+
+      expect(onError).not.toHaveBeenCalled()
+      expect(onBlock.mock.calls.map(([block]) => block.height)).toEqual([
+        100, 101, 102,
+      ])
+    })
+
+    it('retries an error whose cause is transient', async () => {
+      failBlockResults(
+        101,
+        2,
+        new Error('CosmWasm client not connected', {
+          cause: new Error('Bad status on response: 502'),
+        })
+      )
+      const onBlock = vi.fn()
+      const onError = vi.fn()
+
+      await runToEnd(createIterator(), { onBlock, onError })
+
+      expect(onError).not.toHaveBeenCalled()
+      expect(onBlock).toHaveBeenCalledTimes(3)
+    })
+
+    it('backs off exponentially up to the maximum delay', async () => {
+      const callTimes: number[] = []
+      mockGetBlockResults.mockImplementation((h: number) => {
+        if (h === 100) {
+          callTimes.push(Date.now())
+          if (callTimes.length <= 5) {
+            return Promise.reject(couldNotFindResults(h))
+          }
+        }
+        return Promise.resolve(createMockBlockResults(h))
+      })
+
+      await runToEnd(
+        createIterator({ initialDelayMs: 20, maxDelayMs: 80 }, 100),
+        { onBlock: vi.fn() }
+      )
+
+      const gaps = callTimes.slice(1).map((t, i) => t - callTimes[i])
+      // Expected delays: 20, 40, 80, 80, 80.
+      expect(gaps).toHaveLength(5)
+      expect(gaps[0]).toBeGreaterThanOrEqual(15)
+      expect(gaps[1]).toBeGreaterThanOrEqual(35)
+      expect(gaps[2]).toBeGreaterThanOrEqual(75)
+      expect(gaps[3]).toBeGreaterThanOrEqual(75)
+      expect(gaps[4]).toBeGreaterThanOrEqual(75)
+      // Capped at the maximum delay (with some slack for timers).
+      expect(Math.max(...gaps)).toBeLessThan(300)
+    })
+
+    it('warns when a block has been retrying longer than the threshold', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const failures = failBlockResults(101, 15, couldNotFindResults(101))
+      const onRetryWarning = vi.fn()
+      const onBlock = vi.fn()
+
+      await runToEnd(
+        createIterator({
+          initialDelayMs: 10,
+          maxDelayMs: 10,
+          warnAfterMs: 50,
+          warnIntervalMs: 60_000,
+        }),
+        { onBlock, onRetryWarning }
+      )
+
+      expect(failures()).toBe(15)
+      // Warned once: the interval is longer than the whole retry.
+      expect(onRetryWarning).toHaveBeenCalledTimes(1)
+      const [warning] = onRetryWarning.mock.calls[0]
+      expect(warning.blockHeight).toBe(101)
+      expect(warning.elapsedMs).toBeGreaterThanOrEqual(50)
+      expect(warning.attempts).toBeGreaterThan(1)
+      expect(warning.error.message).toContain(
+        'could not find results for height #101'
+      )
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Block 101 has been retrying transient RPC errors'
+        )
+      )
+      // The block still gets processed.
+      expect(onBlock).toHaveBeenCalledTimes(3)
+
+      warn.mockRestore()
+    })
+
+    it('repeats the warning every interval while the block keeps failing', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      failBlockResults(101, 30, couldNotFindResults(101))
+      const onRetryWarning = vi.fn()
+
+      await runToEnd(
+        createIterator({
+          initialDelayMs: 10,
+          maxDelayMs: 10,
+          warnAfterMs: 20,
+          warnIntervalMs: 60,
+        }),
+        { onBlock: vi.fn(), onRetryWarning }
+      )
+
+      expect(onRetryWarning.mock.calls.length).toBeGreaterThan(1)
+      warn.mockRestore()
+    })
+
+    it('raises a block error once the overall retry limit is reached', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      mockGetBlockResults.mockImplementation((h: number) =>
+        h === 101
+          ? Promise.reject(couldNotFindResults(h))
+          : Promise.resolve(createMockBlockResults(h))
+      )
+      const onBlock = vi.fn()
+      const onError = vi.fn()
+
+      await expect(
+        runToEnd(
+          createIterator({
+            initialDelayMs: 10,
+            maxDelayMs: 10,
+            maxDurationMs: 100,
+          }),
+          { onBlock, onError }
+        )
+      ).rejects.toThrow('could not find results for height #101')
+
+      expect(onBlock.mock.calls.map(([block]) => block.height)).toEqual([100])
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: BlockIteratorErrorType.Block,
+          blockHeight: 101,
+          cause: expect.any(TransientRetryExhaustedError),
+        })
+      )
+      warn.mockRestore()
+    })
+
+    it('does not retry non-transient errors with backoff', async () => {
+      const failures = failBlockResults(101, 100, new Error('invalid block'))
+      const onError = vi.fn()
+
+      await expect(
+        runToEnd(createIterator(), { onBlock: vi.fn(), onError })
+      ).rejects.toThrow('invalid block')
+
+      // The retry helper is mocked to a single try in these tests, so the
+      // block failed on its first attempt.
+      expect(failures()).toBe(1)
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: BlockIteratorErrorType.Block,
+          blockHeight: 101,
+          cause: expect.objectContaining({ message: 'invalid block' }),
+        })
+      )
+    })
+
+    it('retries a 502 at startup, then iterates', async () => {
+      const status = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Bad status on response: 502'))
+        .mockRejectedValueOnce(new Error('Bad status on response: 502'))
+        .mockResolvedValue({ syncInfo: { earliestBlockHeight: 1 } })
+      mockClient.forceGetCometClient = vi.fn(() => ({
+        status,
+        block: mockGetBlock,
+        blockResults: mockGetBlockResults,
+      }))
+      const onBlock = vi.fn()
+
+      await runToEnd(createIterator(), { onBlock })
+
+      expect(status).toHaveBeenCalledTimes(3)
+      expect(onBlock).toHaveBeenCalledTimes(3)
+    })
+
+    it('retries a disconnected client at startup, then iterates', async () => {
+      ;(mockAutoCosmWasmClient.getValidClient as any) = vi
+        .fn()
+        .mockRejectedValueOnce(
+          new Error('CosmWasm client not connected', {
+            cause: new Error('Bad status on response: 502'),
+          })
+        )
+        .mockResolvedValue(mockClient)
+      const onBlock = vi.fn()
+
+      await runToEnd(createIterator(), { onBlock })
+
+      expect(onBlock).toHaveBeenCalledTimes(3)
+    })
+
+    it('stops cleanly when stopped while a block is retrying', async () => {
+      mockGetBlockResults.mockImplementation((h: number) =>
+        h === 101
+          ? Promise.reject(couldNotFindResults(h))
+          : Promise.resolve(createMockBlockResults(h))
+      )
+      const onBlock = vi.fn()
+      const onError = vi.fn()
+
+      const iterator = createIterator({}, 105)
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock, onError })
+      await sendBlockPastEndHeight()
+
+      // Let block 100 process and block 101 start retrying.
+      await vi.waitFor(() => expect(onBlock).toHaveBeenCalledTimes(1))
+      iterator.stopFetching()
+
+      await iteratePromise
+
+      expect(onBlock.mock.calls.map(([block]) => block.height)).toEqual([100])
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('does not fetch again after a stop during block retry backoff', async () => {
+      mockGetBlockResults.mockImplementation((h: number) =>
+        h === 101
+          ? Promise.reject(new Error('Bad status on response: 502'))
+          : Promise.resolve(createMockBlockResults(h))
+      )
+      const onBlock = vi.fn()
+      const onError = vi.fn()
+
+      // Long backoff, so the stop arrives while block 101 is sleeping.
+      const iterator = createIterator(
+        { initialDelayMs: 5_000, maxDelayMs: 5_000 },
+        105
+      )
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock, onError })
+      await sendBlockPastEndHeight()
+
+      await vi.waitFor(() => {
+        expect(onBlock).toHaveBeenCalledTimes(1)
+        expect(mockGetBlockResults).toHaveBeenCalledWith(101)
+      })
+      const getValidClient = vi.mocked(mockAutoCosmWasmClient.getValidClient)
+      const clientCallsAtStop = getValidClient.mock.calls.length
+      const resultsCallsAtStop = mockGetBlockResults.mock.calls.length
+
+      const stoppedAt = Date.now()
+      iterator.stopFetching()
+      await iteratePromise
+      // Give a stray retry attempt time to run.
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      expect(Date.now() - stoppedAt).toBeLessThan(1_000)
+      expect(getValidClient).toHaveBeenCalledTimes(clientCallsAtStop)
+      expect(mockGetBlockResults).toHaveBeenCalledTimes(resultsCallsAtStop)
+      expect(onBlock.mock.calls.map(([block]) => block.height)).toEqual([100])
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('stops while a block fetch is waiting for the client to reconnect', async () => {
+      // After block 101 fails, the client starts reconnecting and every later
+      // getValidClient call waits on it, which never finishes here.
+      let reconnecting = false
+      let callsWhileReconnecting = 0
+      mockGetBlockResults.mockImplementation((h: number) => {
+        if (h === 101) {
+          reconnecting = true
+          return Promise.reject(new Error('Bad status on response: 502'))
+        }
+        return Promise.resolve(createMockBlockResults(h))
+      })
+      ;(mockAutoCosmWasmClient.getValidClient as any) = vi.fn(() => {
+        if (reconnecting) {
+          callsWhileReconnecting++
+          return new Promise(() => {})
+        }
+        return Promise.resolve(mockClient)
+      })
+      const onBlock = vi.fn()
+      const onError = vi.fn()
+
+      const iterator = createIterator({}, 105)
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock, onError })
+      await sendBlockPastEndHeight()
+
+      // Wait until block 101's retry is stuck waiting for the client.
+      await vi.waitFor(() => expect(callsWhileReconnecting).toBeGreaterThan(0))
+
+      iterator.stopFetching()
+      await iteratePromise
+
+      // The fetch waiting on the client gives up instead of staying pending
+      // until the reconnect finishes.
+      await vi.waitFor(() => expect(iterator['abandonedHeight']).toBe(101), {
+        timeout: 1_000,
+      })
+      expect(onBlock.mock.calls.map(([block]) => block.height)).toEqual([100])
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('does not keep a stop listener for each finished fetch', async () => {
+      // Fail a few attempts so retries register listeners too.
+      failBlockResults(101, 3, new Error('Bad status on response: 502'))
+      const onBlock = vi.fn()
+
+      const iterator = createIterator({}, 110)
+      await runToEnd(iterator, { onBlock })
+
+      expect(onBlock).toHaveBeenCalledTimes(11)
+      expect(iterator['stopListeners'].size).toBe(0)
+    })
+
+    it('removes the stop listener of a fetch once it finishes', async () => {
+      let finish: (value: unknown) => void = () => {}
+      mockGetBlockResults.mockImplementation((h: number) =>
+        h === 101
+          ? new Promise((resolve) => {
+              finish = () => resolve(createMockBlockResults(h))
+            })
+          : Promise.resolve(createMockBlockResults(h))
+      )
+      const onBlock = vi.fn()
+
+      const iterator = createIterator({}, 101)
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock })
+      await sendBlockPastEndHeight()
+
+      // Only the fetch of block 101 is still waiting.
+      await vi.waitFor(() => {
+        expect(onBlock).toHaveBeenCalledTimes(1)
+        expect(mockGetBlockResults).toHaveBeenCalledWith(101)
+      })
+      expect(iterator['stopListeners'].size).toBe(1)
+
+      finish(undefined)
+      await iteratePromise
+
+      expect(onBlock).toHaveBeenCalledTimes(2)
+      expect(iterator['stopListeners'].size).toBe(0)
+    })
+
+    it('stops during startup backoff without fetching', async () => {
+      const status = vi
+        .fn()
+        .mockRejectedValue(new Error('Bad status on response: 502'))
+      mockClient.forceGetCometClient = vi.fn(() => ({
+        status,
+        block: mockGetBlock,
+        blockResults: mockGetBlockResults,
+      }))
+      const onBlock = vi.fn()
+
+      // Long backoff, so the stop arrives while the iterator is sleeping.
+      const iterator = createIterator({
+        initialDelayMs: 5_000,
+        maxDelayMs: 5_000,
+      })
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock })
+
+      await vi.waitFor(() => expect(status).toHaveBeenCalledTimes(1))
+      const stoppedAt = Date.now()
+      iterator.stopFetching()
+      await iteratePromise
+
+      // Resolves right away instead of waiting out the backoff.
+      expect(Date.now() - stoppedAt).toBeLessThan(1_000)
+      expect(status).toHaveBeenCalledTimes(1)
+      expect(mockGetBlock).not.toHaveBeenCalled()
+      expect(onBlock).not.toHaveBeenCalled()
+    })
+
+    it('stops while a startup connection is still being retried', async () => {
+      // The client keeps retrying its connection, so this never settles.
+      ;(mockAutoCosmWasmClient.getValidClient as any) = vi.fn(
+        () => new Promise(() => {})
+      )
+      const onBlock = vi.fn()
+
+      const iterator = createIterator()
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock })
+
+      await vi.waitFor(() =>
+        expect(mockAutoCosmWasmClient.getValidClient).toHaveBeenCalledTimes(1)
+      )
+      iterator.stopFetching()
+      await iteratePromise
+
+      expect(mockGetBlock).not.toHaveBeenCalled()
+      expect(onBlock).not.toHaveBeenCalled()
+    })
+
+    it('does not start fetching when the RPC recovers after a stop', async () => {
+      let recover: (value: unknown) => void = () => {}
+      const status = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Bad status on response: 502'))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              recover = resolve
+            })
+        )
+      mockClient.forceGetCometClient = vi.fn(() => ({
+        status,
+        block: mockGetBlock,
+        blockResults: mockGetBlockResults,
+      }))
+      const onBlock = vi.fn()
+
+      const iterator = createIterator()
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock })
+
+      // Stop while the second status call is in flight, then let it succeed.
+      await vi.waitFor(() => expect(status).toHaveBeenCalledTimes(2))
+      iterator.stopFetching()
+      recover({ syncInfo: { earliestBlockHeight: 1 } })
+      await iteratePromise
+
+      // Give a fetcher that started anyway time to request blocks.
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      expect(mockGetBlock).not.toHaveBeenCalled()
+      expect(mockClient.getHeight).not.toHaveBeenCalled()
+      expect(onBlock).not.toHaveBeenCalled()
+    })
+
+    it('does not start fetching when stopped during the remaining startup steps', async () => {
+      // The earliest height is reported as 0, so startup probes block 1.
+      let probe: (value: unknown) => void = () => {}
+      mockClient.forceGetCometClient = vi.fn(() => ({
+        status: vi
+          .fn()
+          .mockResolvedValue({ syncInfo: { earliestBlockHeight: 0 } }),
+        block: mockGetBlock,
+        blockResults: mockGetBlockResults,
+      }))
+      mockClient.getBlock = vi.fn(
+        () =>
+          new Promise((resolve) => {
+            probe = resolve
+          })
+      )
+      const onBlock = vi.fn()
+
+      const iterator = createIterator()
+      blockIterator = iterator
+      const iteratePromise = iterator.iterate({ onBlock })
+
+      await vi.waitFor(() => expect(mockClient.getBlock).toHaveBeenCalled())
+      iterator.stopFetching()
+      probe({})
+      await iteratePromise
+
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      expect(mockGetBlock).not.toHaveBeenCalled()
+      expect(onBlock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('onBlockProcessed', () => {
+    it('is called after every TX in the block, in block order', async () => {
+      const events: string[] = []
+
+      await (async () => {
+        const iteratePromise = blockIterator.iterate({
+          onBlock: (block) => {
+            events.push(`block ${block.height}`)
+          },
+          onTx: (tx) => {
+            events.push(`tx ${tx.height}/${tx.index}`)
+          },
+          onBlockProcessed: (block) => {
+            events.push(`processed ${block.height}`)
+          },
+        })
+        await sendBlockPastEndHeight()
+        await iteratePromise
+      })()
+
+      const expected = [100, 101, 102, 103, 104, 105].flatMap((height) => [
+        `block ${height}`,
+        `tx ${height}/0`,
+        `tx ${height}/1`,
+        `tx ${height}/2`,
+        `processed ${height}`,
+      ])
+      expect(events).toEqual(expected)
+    })
+
+    it('is not called for a block whose TX failed when TX errors throw', async () => {
+      mockTxDecode.mockImplementation(() => {
+        throw new Error('TX decoding failed')
+      })
+      const onBlockProcessed = vi.fn()
+
+      const iteratePromise = blockIterator.iterate({
+        onTx: vi.fn(),
+        onBlockProcessed,
+      })
+      await sendBlockPastEndHeight()
+
+      await expect(iteratePromise).rejects.toThrow('TX decoding failed')
+      expect(onBlockProcessed).not.toHaveBeenCalled()
     })
   })
 

@@ -1,0 +1,186 @@
+import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+
+import type { AutoCosmWasmClient as AutoCosmWasmClientType } from './AutoCosmWasmClient'
+import type { connectCosmWasmClient as connectCosmWasmClientType } from './cometClient'
+
+// The fork connects through connectCosmWasmClient, which picks the CometBFT
+// adaptor from the node version, instead of CosmWasmClient.connect.
+vi.mock('./cometClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./cometClient')>()),
+  connectCosmWasmClient: vi.fn(),
+}))
+
+// The test setup file imports '@/utils' before this file registers the mock
+// above, so AutoCosmWasmClient is already loaded with the real cometClient.
+// Reload both modules so AutoCosmWasmClient uses the mocked connect function.
+let AutoCosmWasmClient: typeof AutoCosmWasmClientType
+let connectCosmWasmClient: typeof connectCosmWasmClientType
+beforeAll(async () => {
+  vi.resetModules()
+  ;({ AutoCosmWasmClient } = await import('./AutoCosmWasmClient'))
+  ;({ connectCosmWasmClient } = await import('./cometClient'))
+})
+
+describe('AutoCosmWasmClient', () => {
+  const rpc = 'http://localhost:26657'
+  const fakeClient = {
+    getChainId: vi.fn().mockResolvedValue('xion-testnet-2'),
+  } as unknown as CosmWasmClient
+
+  // Fast retries so tests run quickly.
+  const connectRetry = {
+    initialDelayMs: 5,
+    maxDelayMs: 20,
+    maxDurationMs: 5_000,
+  }
+
+  let clients: AutoCosmWasmClientType[] = []
+  const createClient = (
+    ...params: ConstructorParameters<typeof AutoCosmWasmClientType>
+  ) => {
+    const client = new AutoCosmWasmClient(...params)
+    clients.push(client)
+    return client
+  }
+
+  let spies: { mockRestore: () => void }[] = []
+
+  beforeEach(() => {
+    spies = [
+      vi.spyOn(console, 'log').mockImplementation(() => {}),
+      vi.spyOn(console, 'warn').mockImplementation(() => {}),
+    ]
+  })
+
+  afterEach(() => {
+    clients.forEach((client) => client.stop())
+    clients = []
+    // Only restore the spies created here, not the global console.error mock
+    // from the test setup.
+    spies.forEach((spy) => spy.mockRestore())
+    vi.mocked(connectCosmWasmClient).mockReset()
+  })
+
+  it('retries a 502 at startup with backoff, then connects', async () => {
+    const connect = vi
+      .mocked(connectCosmWasmClient)
+      .mockRejectedValueOnce(new Error('Bad status on response: 502'))
+      .mockRejectedValueOnce(new Error('Bad status on response: 502'))
+      .mockResolvedValue(fakeClient)
+
+    const client = createClient(rpc, undefined, { connectRetry })
+    await client.update()
+
+    expect(connect).toHaveBeenCalledTimes(3)
+    expect(await client.getValidClient()).toBe(fakeClient)
+    expect(client.chainId).toBe('xion-testnet-2')
+  })
+
+  it('retries when getting the chain ID fails transiently', async () => {
+    const getChainId = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockResolvedValue('xion-mainnet-1')
+    const connect = vi
+      .mocked(connectCosmWasmClient)
+      .mockResolvedValue({ getChainId } as unknown as CosmWasmClient)
+
+    const client = createClient(rpc, undefined, { connectRetry })
+
+    expect(await client.getValidChainId()).toBe('xion-mainnet-1')
+    expect(connect).toHaveBeenCalledTimes(2)
+  })
+
+  it('reconnects with backoff after the connection test fails', async () => {
+    const connect = vi
+      .mocked(connectCosmWasmClient)
+      // Initial connection.
+      .mockResolvedValueOnce({
+        getChainId: vi
+          .fn()
+          .mockResolvedValueOnce('xion-mainnet-1')
+          .mockRejectedValue(new Error('read ECONNRESET')),
+      } as unknown as CosmWasmClient)
+      // Reconnection: two 502s, then success.
+      .mockRejectedValueOnce(new Error('Bad status on response: 502'))
+      .mockRejectedValueOnce(new Error('Bad status on response: 502'))
+      .mockResolvedValue(fakeClient)
+
+    const client = createClient(rpc, undefined, { connectRetry })
+    await client.update()
+    expect(connect).toHaveBeenCalledTimes(1)
+
+    // The connection test retries 3 times, 1 second apart, before
+    // reconnecting.
+    await client.update()
+
+    expect(connect).toHaveBeenCalledTimes(4)
+    expect(await client.getValidClient()).toBe(fakeClient)
+  })
+
+  it('shares one retry loop between concurrent callers', async () => {
+    const connect = vi
+      .mocked(connectCosmWasmClient)
+      .mockRejectedValueOnce(new Error('Bad status on response: 503'))
+      .mockResolvedValue(fakeClient)
+
+    const client = createClient(rpc, undefined, { connectRetry })
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => client.getValidClient())
+    )
+
+    expect(results).toEqual(Array(5).fill(fakeClient))
+    expect(connect).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry non-transient errors', async () => {
+    const connect = vi
+      .mocked(connectCosmWasmClient)
+      .mockRejectedValue(new Error('Bad status on response: 401'))
+
+    const client = createClient(rpc, undefined, { connectRetry })
+
+    await expect(client.getValidClient()).rejects.toThrow(
+      'CosmWasm client not connected'
+    )
+    expect(connect).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up after the maximum duration and reports the cause', async () => {
+    const connect = vi
+      .mocked(connectCosmWasmClient)
+      .mockRejectedValue(new Error('Bad status on response: 502'))
+
+    const client = createClient(rpc, undefined, {
+      connectRetry: { ...connectRetry, maxDurationMs: 100 },
+    })
+
+    const error = await client.getValidClient().catch((err) => err)
+    expect(error).toBeInstanceOf(Error)
+    expect(error.message).toBe('CosmWasm client not connected')
+    expect(error.cause.message).toBe('Bad status on response: 502')
+    expect(connect.mock.calls.length).toBeGreaterThan(1)
+  })
+
+  it('does not retry when connect retry is not enabled', async () => {
+    const connect = vi
+      .mocked(connectCosmWasmClient)
+      .mockRejectedValue(new Error('Bad status on response: 502'))
+
+    const client = createClient(rpc)
+
+    await expect(client.getValidClient()).rejects.toThrow(
+      'CosmWasm client not connected'
+    )
+    expect(connect).toHaveBeenCalledTimes(1)
+  })
+})
