@@ -203,9 +203,9 @@ CREATE TABLE "FeegrantAllowances" (
   PRIMARY KEY ("granter", "grantee", "blockHeight")
 );
 
--- Optimized indexes for TimescaleDB
+-- Xion dropped the separate granter/block height index. Use the
+-- granter/grantee/block height index below for granter lookups instead.
 CREATE INDEX ON "FeegrantAllowances" ("granter", "grantee", "blockHeight" DESC);
-CREATE INDEX ON "FeegrantAllowances" ("granter" text_pattern_ops, "blockHeight" DESC);
 CREATE INDEX ON "FeegrantAllowances" ("grantee" text_pattern_ops, "blockHeight" DESC);
 CREATE INDEX ON "FeegrantAllowances" ("blockHeight");
 ```
