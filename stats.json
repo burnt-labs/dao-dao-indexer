@@ -13,7 +13,7 @@
         "medium": 4
       }
     },
-    "duration_s": 889.5,
+    "duration_s": 928.9,
     "killed": 0,
     "killed_by_stage": {
       "dismissed": 0,
@@ -24,25 +24,25 @@
     },
     "outcomes": {
       "nothing-new": 1,
-      "posted": 6
+      "posted": 7
     },
     "posted": 4,
     "raised": 5,
     "refuted": 0,
-    "reviews": 7,
+    "reviews": 8,
     "tokens": {
-      "billed_input": 3405448,
-      "cache_read": 324608,
+      "billed_input": 3528758,
+      "cache_read": 327936,
       "cache_write": 0,
-      "input": 3405448,
-      "output": 24034
+      "input": 3528758,
+      "output": 25086
     },
     "tokens_per_posted_finding": {
-      "billed_input": 851362,
-      "output": 6008
+      "billed_input": 882190,
+      "output": 6272
     },
     "window_days": 30
   },
-  "generated_at": "2026-11-26T02:25:39+00:00",
+  "generated_at": "2026-11-27T02:26:09+00:00",
   "users": {}
 }
