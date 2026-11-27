@@ -3,6 +3,7 @@
 _Generated; do not edit by hand. Read full notes with memory_read._
 
 ## convention
+- **Index additions must cover migrated and model-synced databases** (`model-migration-index-parity`) ["src/db/{models/**,migrations/data/**}"] — Model index declarations and data migrations are separate sc
 - **Infisical credentials stay out of process arguments** (`infisical-secret-transport`) ["{infisical/**,*infisical*.sh,package.json,README.md,tests/infisical-scripts.mjs}"] — Infisical tokens and client secrets must travel through envi
 
 ## gotcha
