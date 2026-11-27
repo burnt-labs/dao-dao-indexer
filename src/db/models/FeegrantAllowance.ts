@@ -35,18 +35,6 @@ import { getDependentKey, serializeBlock } from '@/utils'
     {
       fields: [
         {
-          name: 'granter',
-          operator: 'text_pattern_ops',
-        },
-        {
-          name: 'blockHeight',
-          order: 'DESC',
-        },
-      ],
-    },
-    {
-      fields: [
-        {
           name: 'grantee',
           operator: 'text_pattern_ops',
         },
@@ -61,28 +49,18 @@ import { getDependentKey, serializeBlock } from '@/utils'
     {
       fields: ['blockHeight'],
     },
-    {
-      fields: ['active', 'parsedDenom'],
-      where: {
-        active: true,
-      },
-      name: 'feegrant_allowances_active_parsed_denom',
-    },
-    {
-      fields: ['active', 'parsedAllowanceType'],
-      where: {
-        active: true,
-      },
-      name: 'feegrant_allowances_active_parsed_allowance_type',
-    },
-    {
-      fields: ['parsedDenom'],
-      name: 'feegrant_allowances_parsed_denom',
-    },
-    {
-      fields: ['parsedAllowanceType'],
-      name: 'feegrant_allowances_parsed_allowance_type',
-    },
+    // These are intentionally not declared. They were dropped from the Xion
+    // databases as unused, and declaring them would make `sync` rebuild them
+    // there without CONCURRENTLY:
+    // - `feegrant_allowances_granter_block_height`
+    //   (granter text_pattern_ops, blockHeight DESC). The unique
+    //   (granter, grantee, blockHeight DESC) index covers granter lookups.
+    // - `feegrant_allowances_active_parsed_denom`,
+    //   `feegrant_allowances_active_parsed_allowance_type`,
+    //   `feegrant_allowances_parsed_denom` and
+    //   `feegrant_allowances_parsed_allowance_type`. The
+    //   20250814225600-add-parsed-fields-to-feegrant-allowance migration still
+    //   creates them on databases built from migrations.
   ],
 })
 export class FeegrantAllowance extends DependableEventModel {

@@ -50,7 +50,7 @@ export class AccountWalletContract extends Model {
   @Column(DataType.STRING)
   declare accountPublicKey: string
 
-  @BelongsTo(() => Account)
+  @BelongsTo(() => Account, { onDelete: 'CASCADE' })
   declare account: Account
 
   @AllowNull(false)

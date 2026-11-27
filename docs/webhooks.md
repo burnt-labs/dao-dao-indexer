@@ -158,6 +158,12 @@ The Xion deposit webhook integration emits normalized deposit detections as
 Registrations are chain-scoped and created through the per-chain indexer API,
 not through static indexer config or the global accounts API.
 
+Registrations are stored in the `AccountDepositWebhookRegistrations` table of
+each chain's data database. The accounts database also has a table with that
+name, created by an older accounts migration before the feature moved to the
+data database. It is an unused legacy leftover and is intentionally not backed
+by a model.
+
 This is a deposit-detection webhook, not a generic balance-change feed. It only
 fires when the indexer observes a matching inbound native-bank or CW20 transfer
 into a watched wallet for an allowed asset.
