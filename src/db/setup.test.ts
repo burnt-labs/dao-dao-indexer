@@ -254,6 +254,35 @@ describe('database setup and migrations', () => {
     expect(await runPendingMigrations(sequelize)).toEqual([])
   })
 
+  it('records the accounts migrations and is idempotent for the accounts database', async () => {
+    const accountsSequelize = await loadDb({
+      type: DbType.Accounts,
+    })
+    const accountsMigrationsPath = path.join(MIGRATIONS_PATH, '..', 'accounts')
+    const accountsMigrationNames = getMigrationNames(accountsMigrationsPath)
+    expect(accountsMigrationNames.length).toBeGreaterThan(0)
+
+    await setup(accountsSequelize, false, 'accounts')
+    expect(
+      await markMigrationsAsRun(accountsSequelize, accountsMigrationsPath)
+    ).toEqual({
+      marked: true,
+      inserted: accountsMigrationNames,
+    })
+
+    // Running setup again must not try to recreate existing indexes.
+    await setup(accountsSequelize, false, 'accounts')
+    expect(
+      await markMigrationsAsRun(accountsSequelize, accountsMigrationsPath)
+    ).toEqual({
+      marked: false,
+      inserted: [],
+    })
+    expect(await getExecutedMigrations(accountsSequelize)).toEqual(
+      accountsMigrationNames
+    )
+  })
+
   it('does nothing for a migrations folder that does not exist', async () => {
     expect(
       await markMigrationsAsRun(

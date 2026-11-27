@@ -23,6 +23,10 @@ export type AccountWalletContractApiJson = {
   timestamps: true,
   indexes: [
     {
+      // Postgres truncates names to 63 characters, so name the index explicitly
+      // with the truncated name. Otherwise sync does not recognize the existing
+      // index and tries to create it again.
+      name: 'account_wallet_contracts_account_public_key_chain_id_wallet_add',
       unique: true,
       fields: [
         'accountPublicKey',
