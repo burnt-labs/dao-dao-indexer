@@ -17,7 +17,7 @@ import {
   DependentKeyNamespace,
   ParsedWasmStateEvent,
 } from '@/types'
-import { getDependentKey } from '@/utils'
+import { dbKeyForKeys, getDependentKey } from '@/utils'
 
 import { Contract } from './Contract'
 
@@ -39,18 +39,23 @@ import { Contract } from './Contract'
         },
       ],
     },
+    // Speeds up queries over the `contract_info` state of every contract. This
+    // replaced the trigram index on `key` (`wasm_state_events_key_trgm_idx`),
+    // which was dropped from the Xion databases and is intentionally not
+    // declared, so `sync` won't rebuild it.
     {
-      name: 'wasm_state_events_key_trgm_idx',
-      // Speeds up queries. Use trigram index for string key to speed up partial
-      // matches (LIKE).
+      name: 'wasm_state_events_contract_info_contract_address_block_height',
       fields: [
+        'contractAddress',
         {
-          name: 'key',
-          operator: 'gin_trgm_ops',
+          name: 'blockHeight',
+          order: 'DESC',
         },
       ],
+      where: {
+        key: dbKeyForKeys('contract_info'),
+      },
       concurrently: true,
-      using: 'gin',
     },
     // Speeds up transform script queries iterating over all events in order of
     // block height.

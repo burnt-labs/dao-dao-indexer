@@ -31,15 +31,10 @@ import { getDependentKey } from '@/utils'
         },
       ],
     },
-    {
-      fields: [
-        'address',
-        {
-          name: 'blockHeight',
-          order: 'DESC',
-        },
-      ],
-    },
+    // `bank_state_events_address_block_height` (address, blockHeight DESC) is
+    // intentionally not declared. It was dropped from the Xion databases as
+    // unused, and declaring it would make `sync` rebuild it there without
+    // CONCURRENTLY.
   ],
 })
 export class BankStateEvent extends DependableEventModel {

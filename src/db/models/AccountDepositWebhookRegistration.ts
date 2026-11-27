@@ -33,6 +33,13 @@ type ActiveRegistrationsCache = {
   registrations: AccountDepositWebhookRegistration[]
 }
 
+// Registrations live in each chain's data database (see `getModelsForType` in
+// `src/db/connection.ts`), not in the accounts database. The accounts database
+// also has an `AccountDepositWebhookRegistrations` table, created by the
+// 20260411132020-create-account-deposit-webhook-registration accounts
+// migration before the feature moved to the data database. That table is an
+// intentional, unused legacy leftover: it has an `accountPublicKey` foreign key
+// and no `hashedManagementToken`, so don't register this model there.
 @Table({
   timestamps: true,
   indexes: [
