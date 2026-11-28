@@ -1,3 +1,6 @@
+-- Xion intentionally dropped wasm_state_events_key_trgm_idx to reclaim disk
+-- space. Do not rename it or rebuild it on the replacement table.
+
 \timing
 
 SET client_min_messages TO NOTICE;
@@ -17,8 +20,6 @@ WHERE
 ALTER INDEX wasm_state_events_block_height RENAME TO wasm_state_events_block_height_old;
 
 ALTER INDEX wasm_state_events_contract_address_key_block_height RENAME TO wasm_state_events_contract_address_key_block_height_old;
-
-ALTER INDEX wasm_state_events_key_trgm_idx RENAME TO wasm_state_events_key_trgm_idx_old;
 
 -- Create new table to migrate to
 
@@ -44,9 +45,6 @@ CREATE UNIQUE INDEX "wasm_state_events_contract_address_key_block_height" ON "Wa
 );
 
 CREATE INDEX "wasm_state_events_block_height" ON "WasmStateEvents_new" ("blockHeight");
-
-CREATE INDEX CONCURRENTLY "wasm_state_events_key_trgm_idx" ON "WasmStateEvents_new" USING gin ("key" gin_trgm_ops);
-
 
 -- Create procedure to migrate the data
 
