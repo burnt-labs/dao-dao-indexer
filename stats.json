@@ -5,15 +5,23 @@
     "already_posted": 1,
     "by_severity": {
       "posted": {
-        "high": 1,
+        "high": 2,
         "medium": 3
       },
       "raised": {
-        "high": 1,
+        "high": 2,
         "medium": 4
       }
     },
-    "duration_s": 928.9,
+    "duration_s": 1363.1,
+    "held": 0,
+    "held_by_stage": {
+      "no_scenario": 0,
+      "outside_diff": 0,
+      "pre_existing": 0,
+      "scanner_dismissed": 0,
+      "unreachable": 0
+    },
     "killed": 0,
     "killed_by_stage": {
       "dismissed": 0,
@@ -24,25 +32,25 @@
     },
     "outcomes": {
       "nothing-new": 1,
-      "posted": 7
+      "posted": 13
     },
-    "posted": 4,
-    "raised": 5,
+    "posted": 5,
+    "raised": 6,
     "refuted": 0,
-    "reviews": 8,
+    "reviews": 14,
     "tokens": {
-      "billed_input": 3528758,
-      "cache_read": 327936,
+      "billed_input": 5016584,
+      "cache_read": 385792,
       "cache_write": 0,
-      "input": 3528758,
-      "output": 25086
+      "input": 5016584,
+      "output": 36179
     },
     "tokens_per_posted_finding": {
-      "billed_input": 882190,
-      "output": 6272
+      "billed_input": 1003317,
+      "output": 7236
     },
     "window_days": 30
   },
-  "generated_at": "2026-11-27T02:26:09+00:00",
+  "generated_at": "2026-11-28T02:25:04+00:00",
   "users": {}
 }
